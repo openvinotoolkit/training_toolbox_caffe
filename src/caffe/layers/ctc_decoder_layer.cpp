@@ -121,6 +121,7 @@ void CTCDecoderLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const Blob<Dtype>* target_sequences_data = bottom[2];
     const Dtype* ts_data = target_sequences_data->cpu_data();
     for (int n = 0; n < N_; ++n) {
+
       Sequence target_sequence;
       for (int t = 0; t < T_; ++t) {
         const Dtype dtarget = ts_data[target_sequences_data->offset(t, n)];
@@ -132,19 +133,21 @@ void CTCDecoderLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         const int target = static_cast<int>(0.5 + dtarget);
         target_sequence.push_back(target);
       }
-
+      if (std::equal(target_sequence.begin(), target_sequence.end(), output_sequences_[n].begin()))
+          ++acc;
       if (std::max(target_sequence.size(), output_sequences_[n].size()) == 0) {
         // 0 length
         continue;
       }
 
-      const int ed = EditDistance(target_sequence, output_sequences_[n]);
+//      const int ed = EditDistance(target_sequence, output_sequences_[n]);
 
-      acc += ed * 1.0 /
-              std::max(target_sequence.size(), output_sequences_[n].size());
+//      acc += ed * 1.0 /
+//              std::max(target_sequence.size(), output_sequences_[n].size());
     }
 
-    acc = 1 - acc / N_;
+    //acc = 1 - acc / N_;
+    acc = acc / N_;
     CHECK_GE(acc, 0);
     CHECK_LE(acc, 1);
   }
@@ -232,7 +235,6 @@ void CTCGreedyDecoderLayer<Dtype>::Decode(
       prev_class_idx = max_class_idx;
 
       if (t + 1 == T_ || sequence_indicators->data_at(t + 1, n, 0, 0) == 0) {
-          // End of sequence
           break;
       }
     }
