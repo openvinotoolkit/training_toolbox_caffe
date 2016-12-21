@@ -389,6 +389,7 @@ message LayerParameter {
   optional MVNParameter mvn_param = 120;
   optional ParameterParameter parameter_param = 145;
   optional PoolingParameter pooling_param = 121;
+  optional PermuteParameter permute_param = 202;
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
   optional PythonParameter python_param = 130;
@@ -406,6 +407,13 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+}
+
+message PermuteParameter {
+  // The new orders of the axes of data. Notice it should be with
+  // in the same range as the input data, and it starts from 0.
+  // Do not provide repeated order.
+  repeated uint32 order = 1;
 }
 
 // Message that stores parameters used to apply transformation
