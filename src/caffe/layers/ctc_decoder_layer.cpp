@@ -244,4 +244,89 @@ void CTCGreedyDecoderLayer<Dtype>::Decode(
 INSTANTIATE_CLASS(CTCGreedyDecoderLayer);
 REGISTER_LAYER_CLASS(CTCGreedyDecoder);
 
+// Beam search decoder implementation based on prefix search decoder, see:
+// Graves, A. Supervised Sequence Labelling with Recurrent Neural Networks, 2012
+// ============================================================================
+
+template <typename Dtype>
+void CTCBeamSearchDecoderLayer<Dtype>::Decode(
+        const Blob<Dtype>* log_probabilities,
+        const Blob<Dtype>* sequence_indicators,
+        Sequences* output_sequences,
+        Blob<Dtype>* scores) const {
+  Dtype* score_data = 0;
+  if (scores) {
+    CHECK_EQ(scores->count(), N_);
+    score_data = scores->mutable_cpu_data();
+    caffe_set(N_, static_cast<Dtype>(0), score_data);
+  }
+
+  for (int n = 0; n < N_; ++n) {
+    Prefixes prefixes;
+    Node label(Dtype(-INFINITY), Candidate(0, Sequence()));  // TODO: top-K labels
+
+    prefixes.insert(Node(0., Candidate(0, Sequence())));  // empty prefix
+
+    while (! prefixes.empty()) {
+      typename Prefixes::iterator prefix_it = prefixes.end();
+      prefix_it--;
+      Dtype lp_prefix = prefix_it->first;
+      Candidate prefix = prefix_it->second;
+      int t = prefix.first;
+      prefixes.erase(prefix_it);
+
+      if (lp_prefix < label.first)
+        break;
+
+//      Step(input[t].row(b));
+
+      // check for break
+      if (t + 1 == T_ || sequence_indicators->data_at(t + 1, n, 0, 0) == 0) {
+        int pc = -1;
+        Sequence l;
+        for (int i = 0; i < prefix.second.size(); i++) {
+          int c = prefix.second.at(i);
+          if (c != blank_index_ && c != pc) {
+            l.push_back(c);
+          }
+          pc = c;
+        }
+        if (lp_prefix > label.first)
+          label = Node(lp_prefix, Candidate(0, l));
+        continue;
+      }
+
+      // get maximum probability
+      const Dtype* logp = log_probabilities->cpu_data() +
+          log_probabilities->offset(t, n);
+      const Dtype max_logp = *std::max_element(logp, logp + C_);  // TODO: remove it from logp
+
+      // build all children
+      for (int k = 0; k < C_; ++k) {
+        Candidate p = prefix;
+        p.second.push_back(k);
+        p.first++;
+        Dtype lp = lp_prefix + logp[k] - max_logp;
+        prefixes.insert(Node(lp, p));
+        if (prefixes.size() > max_candidates_) {
+          typename Prefixes::iterator end_it = prefixes.begin();
+//          end_it--;
+          prefixes.erase(end_it);
+        }
+      }
+
+      // prefixes sanation (size / prob)
+    }
+
+    // build branches and get top paths
+    (*output_sequences)[n] = label.second.second;
+    if (score_data) {
+      score_data[n] = -label.first;  // negated logprob
+    }
+  }
+}
+
+INSTANTIATE_CLASS(CTCBeamSearchDecoderLayer);
+REGISTER_LAYER_CLASS(CTCBeamSearchDecoder);
+
 }  // namespace caffe
