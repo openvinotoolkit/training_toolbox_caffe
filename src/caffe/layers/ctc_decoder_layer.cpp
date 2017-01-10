@@ -248,6 +248,26 @@ REGISTER_LAYER_CLASS(CTCGreedyDecoder);
 // Graves, A. Supervised Sequence Labelling with Recurrent Neural Networks, 2012
 // ============================================================================
 
+// TODO: clean it out!!!
+const float kLogZero = -INFINITY;
+inline float LogSumExp(float log_prob_1, float log_prob_2) {
+  // Always have 'b' be the smaller number to avoid the exponential from
+  // blowing up.
+  if (log_prob_1 == kLogZero && log_prob_2 == kLogZero) {
+    return kLogZero;
+  } else {
+    return (log_prob_1 > log_prob_2)
+               ? log_prob_1 + log1pf(expf(log_prob_2 - log_prob_1))
+               : log_prob_2 + log1pf(expf(log_prob_1 - log_prob_2));
+  }
+}
+
+template <typename Dtype>
+Dtype LogPSum(Dtype a, Dtype b) {
+//  return Dtype(a + log1p(exp(b - a)));
+  return LogSumExp(a, b);
+}
+
 template <typename Dtype>
 void CTCBeamSearchDecoderLayer<Dtype>::Decode(
         const Blob<Dtype>* log_probabilities,
@@ -262,66 +282,104 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
   }
 
   for (int n = 0; n < N_; ++n) {
-    Prefixes prefixes;
-    Node label(Dtype(-INFINITY), Candidate(0, Sequence()));  // TODO: top-K labels
+    Prefixes to_expand;
+    std::vector<Candidate> paths;
 
-    prefixes.insert(Node(0., Candidate(0, Sequence())));  // empty prefix
+    // empty root prefix
+    Candidate root;
+    root.label = blank_index_;
+    root.parent = -1;
+    root.expanded = false;
+    root.lPn = Dtype(-INFINITY);
+    root.lPt = root.lPb = 0.;
+    paths.push_back(root);
 
-    while (! prefixes.empty()) {
-      typename Prefixes::iterator prefix_it = prefixes.end();
-      prefix_it--;
-      Dtype lp_prefix = prefix_it->first;
-      Candidate prefix = prefix_it->second;
-      int t = prefix.first;
-      prefixes.erase(prefix_it);
+    to_expand.insert(Node(0., 0));
 
-      if (lp_prefix < label.first)
-        break;
-
-//      Step(input[t].row(b));
-
-      // check for break
-      if (t + 1 == T_ || sequence_indicators->data_at(t + 1, n, 0, 0) == 0) {
-        int pc = -1;
-        Sequence l;
-        for (int i = 0; i < prefix.second.size(); i++) {
-          int c = prefix.second.at(i);
-          if (c != blank_index_ && c != pc) {
-            l.push_back(c);
-          }
-          pc = c;
-        }
-        if (lp_prefix > label.first)
-          label = Node(lp_prefix, Candidate(0, l));
-        continue;
-      }
-
-      // get maximum probability
+    for (int t = 0; t < T_; t++) {
+      int fill_from = paths.size(); // ???
+//      std::cout << "beams fill " << fill_from << std::endl;
       const Dtype* logp = log_probabilities->cpu_data() +
           log_probabilities->offset(t, n);
-      const Dtype max_logp = *std::max_element(logp, logp + C_);  // TODO: remove it from logp
 
-      // build all children
-      for (int k = 0; k < C_; ++k) {
-        Candidate p = prefix;
-        p.second.push_back(k);
-        p.first++;
-        Dtype lp = lp_prefix + logp[k] - max_logp;
-        prefixes.insert(Node(lp, p));
-        if (prefixes.size() > max_candidates_) {
-          typename Prefixes::iterator end_it = prefixes.begin();
-//          end_it--;
-          prefixes.erase(end_it);
+      // expand all candidates
+      typename Prefixes::reverse_iterator it = to_expand.rbegin();
+      for (int c = 0; c < max_candidates_ && it != to_expand.rend(); c++, it++) {
+        Dtype parent_lpt = it->first;
+        int parent = it->second;
+
+        // build all children
+        for (int k = 0; k < C_; ++k) {
+          if (k == blank_index_)
+            continue;
+          Candidate e;
+          e.label = k;
+          e.parent = parent;
+          e.expanded = false;
+          if (paths[parent].label == k)
+            e.lPn = paths[parent].lPb + logp[k];
+          else
+            e.lPn = parent_lpt + logp[k];
+          e.lPb = Dtype(-INFINITY);
+          e.lPt = e.lPn;
+          paths.push_back(e);
         }
+
+        paths[parent].expanded = true;
       }
 
-      // prefixes sanation (size / prob)
+      // update logprobs
+      for (int p = fill_from - 1; p >= 0; p--) {
+        int parent = paths[p].parent;
+        if (parent != -1) {
+          if (paths[parent].label == paths[p].label)
+            paths[p].lPn = LogPSum(paths[p].lPn, paths[parent].lPb);
+          else
+            paths[p].lPn = LogPSum(paths[p].lPn, paths[parent].lPt);
+          paths[p].lPn += logp[paths[p].label];
+        }
+        paths[p].lPb = paths[p].lPt + logp[blank_index_];
+        paths[p].lPt = LogPSum(paths[p].lPn, paths[p].lPb);
+      }
+
+      // fill new candidates to expand
+      to_expand.clear();
+      for (int p = 0; p < paths.size(); p++) {
+//        std::cout << p << "\t" << paths[p].lPt << std::endl;
+        if (! paths[p].expanded && paths[p].lPt > -INFINITY) {
+          to_expand.insert(Node(paths[p].lPt, p));
+        }
+      }
     }
 
-    // build branches and get top paths
-    (*output_sequences)[n] = label.second.second;
-    if (score_data) {
-      score_data[n] = -label.first;  // negated logprob
+    // get the label(s)
+    int top_n_ = 1;  // TODO: make it param
+
+    // fill all candidates to labels
+    to_expand.clear();
+    for (int p = 0; p < paths.size(); p++) {
+        to_expand.insert(Node(paths[p].lPt, p));
+    }
+
+    typename Prefixes::reverse_iterator it = to_expand.rbegin();
+    for (int c = 0; c < top_n_ && it != to_expand.rend(); c++, it++) {
+      Dtype label_lpt = it->first;
+      int label = it->second;
+
+//      std::cout << "label " << label << " " << label_lpt << std::endl;
+
+      Sequence l;
+      while (label > 0) {
+        l.push_back(paths[label].label);
+        label = paths[label].parent;
+      }
+
+      // TODO: multi labels output
+      std::reverse(l.begin(), l.end());
+      (*output_sequences)[n] = l;
+      if (score_data) {
+        score_data[n] = label_lpt;  // logprob
+      }
     }
   }
 }

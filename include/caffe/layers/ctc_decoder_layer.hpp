@@ -109,13 +109,18 @@ class CTCBeamSearchDecoderLayer : public CTCDecoderLayer<Dtype> {
   using CTCDecoderLayer<Dtype>::blank_index_;
   using CTCDecoderLayer<Dtype>::merge_repeated_;
   int max_candidates_;  // TODO(szherzdev): set as parameter
-  typedef std::pair<int, Sequence> Candidate;  // input length, label
-  typedef std::pair<Dtype, Candidate> Node;
-  typedef std::multimap<Dtype, Candidate> Prefixes;
+  typedef struct {
+    int parent;
+    int label;
+    Dtype lPn, lPb, lPt;
+    bool expanded;
+  } Candidate;
+  typedef std::multimap<Dtype, int> Prefixes;
+  typedef std::pair<Dtype, int> Node;
 
  public:
   explicit CTCBeamSearchDecoderLayer(const LayerParameter& param)
-      : CTCDecoderLayer<Dtype>(param), max_candidates_(1000) {}
+      : CTCDecoderLayer<Dtype>(param), max_candidates_(10) {}
 
   virtual inline const char* type() const { return "CTCBeamSearchDecoder"; }
 
