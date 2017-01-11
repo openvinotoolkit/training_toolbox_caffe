@@ -326,6 +326,10 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
         paths[p].lPt = LogPSum(paths[p].lPn, paths[p].lPb);
       }
 
+      if (t + 1 == T_ || sequence_indicators->data_at(t + 1, n, 0, 0) == 0) {
+          break;
+      }
+
       // fill new candidates to expand
       to_expand.clear();
       for (int p = 0; p < paths.size(); p++) {
