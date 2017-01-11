@@ -248,24 +248,9 @@ REGISTER_LAYER_CLASS(CTCGreedyDecoder);
 // Graves, A. Supervised Sequence Labelling with Recurrent Neural Networks, 2012
 // ============================================================================
 
-// TODO: clean it out!!!
-const float kLogZero = -INFINITY;
-inline float LogSumExp(float log_prob_1, float log_prob_2) {
-  // Always have 'b' be the smaller number to avoid the exponential from
-  // blowing up.
-  if (log_prob_1 == kLogZero && log_prob_2 == kLogZero) {
-    return kLogZero;
-  } else {
-    return (log_prob_1 > log_prob_2)
-               ? log_prob_1 + log1pf(expf(log_prob_2 - log_prob_1))
-               : log_prob_2 + log1pf(expf(log_prob_1 - log_prob_2));
-  }
-}
-
 template <typename Dtype>
 Dtype LogPSum(Dtype a, Dtype b) {
-//  return Dtype(a + log1p(exp(b - a)));
-  return LogSumExp(a, b);
+  return a > b ? a + log1p(exp(b - a)) : b + log1p(exp(a - b));
 }
 
 template <typename Dtype>
@@ -290,22 +275,20 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
     root.label = blank_index_;
     root.parent = -1;
     root.expanded = false;
-    root.lPn = Dtype(-INFINITY);
+    root.lPn = -INFINITY;
     root.lPt = root.lPb = 0.;
     paths.push_back(root);
 
     to_expand.insert(Node(0., 0));
 
     for (int t = 0; t < T_; t++) {
-      int fill_from = paths.size(); // ???
-//      std::cout << "beams fill " << fill_from << std::endl;
+      int fill_from = paths.size();
       const Dtype* logp = log_probabilities->cpu_data() +
           log_probabilities->offset(t, n);
 
       // expand all candidates
-      typename Prefixes::reverse_iterator it = to_expand.rbegin();
-      for (int c = 0; c < max_candidates_ && it != to_expand.rend(); c++, it++) {
-        Dtype parent_lpt = it->first;
+      for (typename Prefixes::reverse_iterator it = to_expand.rbegin();
+           it != to_expand.rend(); it++) {
         int parent = it->second;
 
         // build all children
@@ -319,9 +302,10 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
           if (paths[parent].label == k)
             e.lPn = paths[parent].lPb + logp[k];
           else
-            e.lPn = parent_lpt + logp[k];
-          e.lPb = Dtype(-INFINITY);
+            e.lPn = paths[parent].lPt + logp[k];
+          e.lPb = -INFINITY;
           e.lPt = e.lPn;
+
           paths.push_back(e);
         }
 
@@ -345,9 +329,10 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
       // fill new candidates to expand
       to_expand.clear();
       for (int p = 0; p < paths.size(); p++) {
-//        std::cout << p << "\t" << paths[p].lPt << std::endl;
         if (! paths[p].expanded && paths[p].lPt > -INFINITY) {
           to_expand.insert(Node(paths[p].lPt, p));
+          if (to_expand.size() > max_candidates_)
+            to_expand.erase(to_expand.begin());
         }
       }
     }
@@ -358,15 +343,15 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
     // fill all candidates to labels
     to_expand.clear();
     for (int p = 0; p < paths.size(); p++) {
-        to_expand.insert(Node(paths[p].lPt, p));
+      to_expand.insert(Node(paths[p].lPt, p));
+      if (to_expand.size() > top_n_)
+        to_expand.erase(to_expand.begin());
     }
 
-    typename Prefixes::reverse_iterator it = to_expand.rbegin();
-    for (int c = 0; c < top_n_ && it != to_expand.rend(); c++, it++) {
+    for (typename Prefixes::reverse_iterator it = to_expand.rbegin();
+         it != to_expand.rend(); it++) {
       Dtype label_lpt = it->first;
       int label = it->second;
-
-//      std::cout << "label " << label << " " << label_lpt << std::endl;
 
       Sequence l;
       while (label > 0) {
@@ -378,7 +363,7 @@ void CTCBeamSearchDecoderLayer<Dtype>::Decode(
       std::reverse(l.begin(), l.end());
       (*output_sequences)[n] = l;
       if (score_data) {
-        score_data[n] = label_lpt;  // logprob
+        score_data[n] = -label_lpt;  // negated logprob
       }
     }
   }
