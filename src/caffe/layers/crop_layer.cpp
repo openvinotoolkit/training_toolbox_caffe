@@ -17,9 +17,10 @@ void CropLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   // LayerSetup() handles the number of dimensions; Reshape() handles the sizes.
   // bottom[0] supplies the data
-  // bottom[1] supplies the size
+  // bottom[1] supplies the size or 'dimsize' parameters 
   const CropParameter& param = this->layer_param_.crop_param();
-  CHECK_EQ(bottom.size(), 2) << "Wrong number of bottom blobs.";
+  CHECK_GE(bottom.size(), 1) << "Wrong number of bottom blobs.";
+  CHECK_LE(bottom.size(), 2) << "Wrong number of bottom blobs.";
   int input_dim = bottom[0]->num_axes();
   const int start_axis = bottom[0]->CanonicalAxisIndex(param.axis());
   CHECK_LT(start_axis, input_dim) << "crop axis bigger than input dim";
@@ -28,6 +29,13 @@ void CropLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     // of dimensions following axis
     CHECK_EQ(start_axis + param.offset_size(), input_dim)
       << "number of offset values specified must be equal to the number of "
+      << "dimensions following axis.";
+  }
+  if (bottom.size() == 1 && param.dimsize_size() > 1) {
+    // the number of crop values specified must be equal to the number
+    // of dimensions following axis
+    CHECK_EQ(start_axis + param.dimsize_size(), input_dim)
+      << "number of dimsize values specified must be equal to the number of "
       << "dimensions following axis.";
   }
 }
@@ -43,28 +51,43 @@ void CropLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   offsets = vector<int>(input_dim, 0);
   vector<int> new_shape(bottom[0]->shape());
 
-  // Determine crop offsets and the new shape post-crop.
-  for (int i = 0; i < input_dim; ++i) {
-    int crop_offset = 0;
-    int new_size = bottom[0]->shape(i);
-    if (i >= start_axis) {
-      new_size = bottom[1]->shape(i);
-      if (param.offset_size() == 1) {
-        // If only one offset is given, all crops have the same offset.
-        crop_offset = param.offset(0);
-      } else if (param.offset_size() > 1) {
-        // For several offsets, the number of offsets must be equal to the
-        // number of dimensions to crop, that is dimensions after the axis.
-        crop_offset = param.offset(i - start_axis);
+  if (bottom.size() == 1) {
+    // Determine crop offsets and the new shape post-crop.
+    for (int i = 0; i < input_dim; ++i) {
+      int crop_offset = 0;
+      int new_size = bottom[0]->shape(i);
+      if (i >= start_axis) {
+        new_size = param.dimsize_size() == 1 ? param.dimsize(0): param.dimsize(i - start_axis);
+        crop_offset = param.offset_size() == 1 ? param.offset(0): param.offset(i - start_axis);
       }
-      // Check that the crop and offset are within the dimension's bounds.
-      CHECK_GE(bottom[0]->shape(i) - crop_offset, bottom[1]->shape(i))
-          << "the crop for dimension " << i << " is out-of-bounds with "
-          << "size " << bottom[1]->shape(i) << " and offset " << crop_offset;
+      new_shape[i] = new_size;
+      offsets[i] = crop_offset;
     }
-    new_shape[i] = new_size;
-    offsets[i] = crop_offset;
+  } else {
+    // Determine crop offsets and the new shape post-crop.
+    for (int i = 0; i < input_dim; ++i) {
+      int crop_offset = 0;
+      int new_size = bottom[0]->shape(i);
+      if (i >= start_axis) {
+        new_size = bottom[1]->shape(i);
+        if (param.offset_size() == 1) {
+          // If only one offset is given, all crops have the same offset.
+          crop_offset = param.offset(0);
+        } else if (param.offset_size() > 1) {
+          // For several offsets, the number of offsets must be equal to the
+          // number of dimensions to crop, that is dimensions after the axis.
+          crop_offset = param.offset(i - start_axis);
+        }
+        // Check that the crop and offset are within the dimension's bounds.
+        CHECK_GE(bottom[0]->shape(i) - crop_offset, bottom[1]->shape(i))
+            << "the crop for dimension " << i << " is out-of-bounds with "
+            << "size " << bottom[1]->shape(i) << " and offset " << crop_offset;
+      }
+      new_shape[i] = new_size;
+      offsets[i] = crop_offset;
+    }
   }
+
   top[0]->Reshape(new_shape);
 }
 

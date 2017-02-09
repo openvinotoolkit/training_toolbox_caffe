@@ -692,6 +692,7 @@ message CropParameter {
   // axis).
   optional int32 axis = 1 [default = 2];
   repeated uint32 offset = 2;
+  repeated uint32 dimsize = 3;
 }
 
 message CTCDecoderParameter {
