@@ -65,8 +65,20 @@ template <typename Dtype>
 void PowerFileLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
 
-	/* not implemented */
-	CHECK(false) << "Error: not implemented.";
+    const Dtype* shift = shift_.cpu_data();
+    const Dtype* input = bottom[0]->cpu_data();
+
+    Dtype* output = top[0]->mutable_cpu_data();
+
+    CHECK(top[0]->count() == bottom[0]->count()) << "Error: in Forward_cpu of PowerFileLayer.";
+    CHECK(bottom[0]->count() % shift_.count() == 0) << "Error: in Forward_cpu of PowerFileLayer.";
+
+    for (size_t i = 0; i < top[0]->count(); ++i)
+    {
+        int shift_idx = i % shift_.count();
+        output[i] = input[i] + shift[shift_idx];
+    }
+
 }
 
 template <typename Dtype>
@@ -74,8 +86,15 @@ void PowerFileLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
 
-	/* not implemented */
-	CHECK(false) << "Error: not implemented.";
+    const Dtype* output = top[0]->cpu_diff();
+    Dtype* input = bottom[0]->mutable_cpu_diff();
+
+    CHECK(top[0]->count() == bottom[0]->count()) << "Error: in Backward_cpu of PowerFileLayer.";
+
+    for (size_t i = 0; i < top[0]->count(); ++i)
+    {
+        input[i] = output[i];
+    }
 }
 
 #ifdef CPU_ONLY
