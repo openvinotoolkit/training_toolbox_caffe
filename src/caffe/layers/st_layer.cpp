@@ -240,9 +240,6 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 
 	string prefix = "\t\tSpatial Transformer Layer:: Forward_cpu: \t";
 
-	CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
-			" CHECK in st_layer.cpp file. Line number: 240-241." << std::endl;
-
 	if(global_debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
 	const Dtype* U = bottom[0]->cpu_data();
@@ -423,12 +420,9 @@ void SpatialTransformerLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
 
 		string prefix = "\t\tSpatial Transformer Layer:: Backward_cpu: \t";
 
-		CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
-				" CHECK in st_layer.cpp file. Line number: 420-421." << std::endl;
-
 		if(global_debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
-		const Dtype* dV = top[0]->cpu_diff();
+        const Dtype* dV = top[0]->cpu_diff();
 		const Dtype* input_grid_data = input_grid.cpu_data();
 		const Dtype* U = bottom[0]->cpu_data();
 
