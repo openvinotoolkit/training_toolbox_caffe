@@ -98,6 +98,39 @@ class CTCGreedyDecoderLayer : public CTCDecoderLayer<Dtype> {
                       Blob<Dtype>* scores) const;
 };
 
+template <typename Dtype>
+class CTCBeamSearchDecoderLayer : public CTCDecoderLayer<Dtype> {
+ private:
+  using typename CTCDecoderLayer<Dtype>::Sequence;
+  using typename CTCDecoderLayer<Dtype>::Sequences;
+  using CTCDecoderLayer<Dtype>::T_;
+  using CTCDecoderLayer<Dtype>::N_;
+  using CTCDecoderLayer<Dtype>::C_;
+  using CTCDecoderLayer<Dtype>::blank_index_;
+  using CTCDecoderLayer<Dtype>::merge_repeated_;
+  int max_candidates_;  // TODO(szherzdev): set as parameter
+  typedef struct {
+    int parent;
+    int label;
+    Dtype lPn, lPb, lPt;
+    bool expanded;
+  } Candidate;
+  typedef std::multimap<Dtype, int> Prefixes;
+  typedef std::pair<Dtype, int> Node;
+
+ public:
+  explicit CTCBeamSearchDecoderLayer(const LayerParameter& param)
+      : CTCDecoderLayer<Dtype>(param), max_candidates_(10) {}
+
+  virtual inline const char* type() const { return "CTCBeamSearchDecoder"; }
+
+ protected:
+  virtual void Decode(const Blob<Dtype>* probabilities,
+                      const Blob<Dtype>* sequence_indicators,
+                      Sequences* output_sequences,
+                      Blob<Dtype>* scores) const;
+};
+
 }  // namespace caffe
 
 #endif  // CAFFE_CTC_DECODER_LAYER_HPP_

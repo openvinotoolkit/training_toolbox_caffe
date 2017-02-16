@@ -244,4 +244,136 @@ void CTCGreedyDecoderLayer<Dtype>::Decode(
 INSTANTIATE_CLASS(CTCGreedyDecoderLayer);
 REGISTER_LAYER_CLASS(CTCGreedyDecoder);
 
+// Beam search decoder implementation based on prefix search decoder, see:
+// Graves, A. Supervised Sequence Labelling with Recurrent Neural Networks, 2012
+// ============================================================================
+
+template <typename Dtype>
+Dtype LogPSum(Dtype a, Dtype b) {
+  return a > b ? a + log1p(exp(b - a)) : b + log1p(exp(a - b));
+}
+
+template <typename Dtype>
+void CTCBeamSearchDecoderLayer<Dtype>::Decode(
+        const Blob<Dtype>* log_probabilities,
+        const Blob<Dtype>* sequence_indicators,
+        Sequences* output_sequences,
+        Blob<Dtype>* scores) const {
+  Dtype* score_data = 0;
+  if (scores) {
+    CHECK_EQ(scores->count(), N_);
+    score_data = scores->mutable_cpu_data();
+    caffe_set(N_, static_cast<Dtype>(0), score_data);
+  }
+
+  for (int n = 0; n < N_; ++n) {
+    Prefixes to_expand;
+    std::vector<Candidate> paths;
+
+    // empty root prefix
+    Candidate root;
+    root.label = blank_index_;
+    root.parent = -1;
+    root.expanded = false;
+    root.lPn = -INFINITY;
+    root.lPt = root.lPb = 0.;
+    paths.push_back(root);
+
+    to_expand.insert(Node(0., 0));
+
+    for (int t = 0; t < T_; t++) {
+      int fill_from = paths.size();
+      const Dtype* logp = log_probabilities->cpu_data() +
+          log_probabilities->offset(t, n);
+
+      // expand all candidates
+      for (typename Prefixes::reverse_iterator it = to_expand.rbegin();
+           it != to_expand.rend(); it++) {
+        int parent = it->second;
+
+        // build all children
+        for (int k = 0; k < C_; ++k) {
+          if (k == blank_index_)
+            continue;
+          Candidate e;
+          e.label = k;
+          e.parent = parent;
+          e.expanded = false;
+          if (paths[parent].label == k)
+            e.lPn = paths[parent].lPb + logp[k];
+          else
+            e.lPn = paths[parent].lPt + logp[k];
+          e.lPb = -INFINITY;
+          e.lPt = e.lPn;
+
+          paths.push_back(e);
+        }
+
+        paths[parent].expanded = true;
+      }
+
+      // update logprobs
+      for (int p = fill_from - 1; p >= 0; p--) {
+        int parent = paths[p].parent;
+        if (parent != -1) {
+          if (paths[parent].label == paths[p].label)
+            paths[p].lPn = LogPSum(paths[p].lPn, paths[parent].lPb);
+          else
+            paths[p].lPn = LogPSum(paths[p].lPn, paths[parent].lPt);
+          paths[p].lPn += logp[paths[p].label];
+        }
+        paths[p].lPb = paths[p].lPt + logp[blank_index_];
+        paths[p].lPt = LogPSum(paths[p].lPn, paths[p].lPb);
+      }
+
+      if (t + 1 == T_ || sequence_indicators->data_at(t + 1, n, 0, 0) == 0) {
+          break;
+      }
+
+      // fill new candidates to expand
+      to_expand.clear();
+      for (int p = 0; p < paths.size(); p++) {
+        if (! paths[p].expanded && paths[p].lPt > -INFINITY) {
+          to_expand.insert(Node(paths[p].lPt, p));
+          if (to_expand.size() > max_candidates_)
+            to_expand.erase(to_expand.begin());
+        }
+      }
+    }
+
+    // get the label(s)
+    int top_n_ = 1;  // TODO: make it param
+
+    // fill all candidates to labels
+    to_expand.clear();
+    for (int p = 0; p < paths.size(); p++) {
+      to_expand.insert(Node(paths[p].lPt, p));
+      if (to_expand.size() > top_n_)
+        to_expand.erase(to_expand.begin());
+    }
+
+    for (typename Prefixes::reverse_iterator it = to_expand.rbegin();
+         it != to_expand.rend(); it++) {
+      Dtype label_lpt = it->first;
+      int label = it->second;
+
+      Sequence l;
+      while (label > 0) {
+        l.push_back(paths[label].label);
+        label = paths[label].parent;
+      }
+
+      // TODO: multi labels output
+      std::reverse(l.begin(), l.end());
+      (*output_sequences)[n] = l;
+      if (score_data) {
+        score_data[n] = -label_lpt;  // negated logprob
+      }
+    }
+  }
+}
+
+INSTANTIATE_CLASS(CTCBeamSearchDecoderLayer);
+REGISTER_LAYER_CLASS(CTCBeamSearchDecoder);
+
 }  // namespace caffe
