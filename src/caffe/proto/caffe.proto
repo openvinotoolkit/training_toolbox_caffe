@@ -95,6 +95,9 @@ message NetParameter {
   // Net::Backward, and Net::Update.
   optional bool debug_info = 7 [default = false];
 
+  optional bool profile_info = 9 [default = false];
+  optional int32 profile_iter = 10 [default = 50];
+  optional int32 profile_warmup = 11 [default = 10];
 
   // The layers that make up the net.  Each of their configurations, including
   // connectivity and behavior, is specified as a LayerParameter.
