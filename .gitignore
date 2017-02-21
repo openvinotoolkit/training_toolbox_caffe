@@ -1,5 +1,9 @@
 ## General
 
+external/mkl/*
+!external/mkl/prepare_mkl.sh
+!external/mkl/mkl.h
+
 # Compiled Object files
 *.slo
 *.lo
