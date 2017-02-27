@@ -10,6 +10,16 @@ list(APPEND Caffe_LINKER_LIBS ${Boost_LIBRARIES})
 find_package(Threads REQUIRED)
 list(APPEND Caffe_LINKER_LIBS ${CMAKE_THREAD_LIBS_INIT})
 
+# ---[ OpenMP
+if(USE_OPENMP)
+  find_package(OpenMP)
+  if(OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  else()
+    set(USE_OPENMP "OFF")   # compiler is not supporting OpenMP then do not use it
+  endif()
+endif()
+
 # ---[ Google-glog
 include("cmake/External/glog.cmake")
 include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
@@ -89,7 +99,7 @@ endif()
 # ---[ BLAS
 if(NOT APPLE)
   set(BLAS "Atlas" CACHE STRING "Selected BLAS library")
-  set_property(CACHE BLAS PROPERTY STRINGS "Atlas;Open;MKL")
+  set_property(CACHE BLAS PROPERTY STRINGS "Atlas;Open;MKL;AdhocMKL")
 
   if(BLAS STREQUAL "Atlas" OR BLAS STREQUAL "atlas")
     find_package(Atlas REQUIRED)
@@ -104,6 +114,37 @@ if(NOT APPLE)
     include_directories(SYSTEM ${MKL_INCLUDE_DIR})
     list(APPEND Caffe_LINKER_LIBS ${MKL_LIBRARIES})
     add_definitions(-DUSE_MKL)
+  elseif(BLAS STREQUAL "AdhocMKL" OR BLAS STREQUAL "adhocmkl")
+    set(MKL_EXTERNAL "0")
+    #--find mkl in external/mkl
+    set(ICC_ON "0")
+    set(script_cmd "./external/mkl/prepare_mkl.sh" )
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+      set(ICC_ON "1")
+    endif()
+    execute_process(COMMAND ${script_cmd} ${ICC_ON}
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+      RESULT_VARIABLE script_result
+      OUTPUT_VARIABLE RETURN_STRING)
+    separate_arguments(RETURN_STRING)
+    list(GET RETURN_STRING 0 MKL_ROOT_DIR)
+    list(GET RETURN_STRING 1 MKL_LIBRARIES)
+    list(GET RETURN_STRING 2 MKL_EXTERNAL)
+    set(MKL_INCLUDE_DIR "${MKL_ROOT_DIR}/include/")
+    if( ${MKL_EXTERNAL} EQUAL 1 )
+      set(MKL_LIBRARIES "${MKL_ROOT_DIR}/lib/lib${MKL_LIBRARIES}.so")
+    else()
+      set(MKL_LIBRARIES "${MKL_ROOT_DIR}/lib/intel64/lib${MKL_LIBRARIES}.so")
+    endif()
+    message(STATUS "Found MKL: ${MKL_INCLUDE_DIR}")
+    message(STATUS "Found MKL (include: ${MKL_INCLUDE_DIR}, lib: ${MKL_LIBRARIES}")
+    include_directories(SYSTEM ${MKL_INCLUDE_DIR})
+    list(APPEND Caffe_LINKER_LIBS ${MKL_LIBRARIES})
+    add_definitions(-DUSE_MKL)
+    # If MKL and OpenMP is to be used then use Intel OpenMP
+    if(OPENMP_FOUND)
+      list(APPEND Caffe_LINKER_LIBS -Wl,--as-needed iomp5)
+    endif()
   endif()
 elseif(APPLE)
   find_package(vecLib REQUIRED)

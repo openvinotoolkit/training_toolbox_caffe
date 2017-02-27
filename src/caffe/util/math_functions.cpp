@@ -1,3 +1,12 @@
+#if USE_MKL
+#include <mkl_vml_functions.h>
+#include <mkl_vsl.h>
+#endif
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include <boost/math/special_functions/next.hpp>
 #include <boost/random.hpp>
 
