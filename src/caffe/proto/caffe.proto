@@ -27,6 +27,11 @@ message BlobProtoVector {
   repeated BlobProto blobs = 1;
 }
 
+message CosineSimilarityBatchParameter {
+  optional double pos_label = 1 [default = 1];
+  optional double neg_label = 2 [default = -1];
+}
+
 message Datum {
   optional int32 channels = 1;
   optional int32 height = 2;
@@ -90,6 +95,7 @@ message NetParameter {
   // Net::Backward, and Net::Update.
   optional bool debug_info = 7 [default = false];
 
+
   // The layers that make up the net.  Each of their configurations, including
   // connectivity and behavior, is specified as a LayerParameter.
   repeated LayerParameter layer = 100;  // ID 100 so layers are printed last.
@@ -101,7 +107,7 @@ message NetParameter {
 // NOTE
 // Update the next available ID when you add a new SolverParameter field.
 //
-// SolverParameter next available ID: 42 (last added: layer_wise_reduce)
+// SolverParameter next available ID: 43 (last added: plateau_winsize)
 message SolverParameter {
   //////////////////////////////////////////////////////////////////////////////
   // Specifying the train and test networks
@@ -169,6 +175,8 @@ message SolverParameter {
   //      zero by the max_iter. return base_lr (1 - iter/max_iter) ^ (power)
   //    - sigmoid: the effective learning rate follows a sigmod decay
   //      return base_lr ( 1/(1 + exp(-gamma * (iter - stepsize))))
+  //    - plateau: decreases lr
+  //              if the minimum loss isn't updated for 'plateau_winsize' iters
   //
   // where base_lr, max_iter, gamma, step, stepvalue and power are defined
   // in the solver parameter protocol buffer, and iter is the current iteration.
@@ -184,6 +192,8 @@ message SolverParameter {
   optional int32 stepsize = 13;
   // the stepsize for learning rate policy "multistep"
   repeated int32 stepvalue = 34;
+  // the stepsize for learning rate policy "plateau"
+  repeated int32 plateau_winsize = 42;
 
   // Set clip_gradients to >= 0 to clip parameter gradients to that L2 norm,
   // whenever their actual L2 norm is larger.
@@ -253,6 +263,8 @@ message SolverState {
   optional string learned_net = 2; // The file that stores the learned net.
   repeated BlobProto history = 3; // The history for sgd solvers
   optional int32 current_step = 4 [default = 0]; // The current step for learning rate
+  optional float minimum_loss = 5 [default = 1E38]; // Historical minimum loss
+  optional int32 iter_last_event = 6 [default = 0]; // The iteration when last lr-update or min_loss-update happend
 }
 
 enum Phase {
@@ -292,16 +304,16 @@ message SpatialTransformerParameter {
 	optional string transform_type = 1 [default = "affine"];
 	// What is the sampling technique
 	optional string sampler_type = 2 [default = "bilinear"];
-	
+
 	// If not set,stay same with the input dimension H and W
 	optional int32 output_H = 3;
 	optional int32 output_W = 4;
-	
+
 	// If false, only compute dTheta, DO NOT compute dU
 	optional bool to_compute_dU = 5 [default = true];
-	
+
 	// The default value for some parameters
-	optional double theta_1_1 = 6; 
+	optional double theta_1_1 = 6;
 	optional double theta_1_2 = 7;
 	optional double theta_1_3 = 8;
 	optional double theta_2_1 = 9;
@@ -317,7 +329,7 @@ message PowerFileParameter {
 
 // added by Kaichun Mo
 message STLossParameter {
-	
+
 	// Indicate the resolution of the output images after ST transformation
 	required int32 output_H = 1;
 	required int32 output_W = 2;
@@ -325,7 +337,7 @@ message STLossParameter {
 
 // added by Kaichun Mo
 message LocLossParameter {
-	
+
 	required double threshold = 1;
 }
 
@@ -357,7 +369,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 150 (last added: ctc_decoder_param)
+// LayerParameter next available layer-specific ID: 211 (last added: box_annotator_ohem_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -440,7 +452,7 @@ message LayerParameter {
   optional MVNParameter mvn_param = 120;
   optional ParameterParameter parameter_param = 145;
   optional PoolingParameter pooling_param = 121;
-  optional PermuteParameter permute_param = 202;
+  optional PermuteParameter permute_param = 154;
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
   optional PythonParameter python_param = 130;
@@ -464,6 +476,45 @@ message LayerParameter {
   optional STLossParameter st_loss_param = 151;
   optional PowerFileParameter power_file_param = 152;
   optional LocLossParameter loc_loss_param = 153;
+
+  optional ProposalParameter proposal_param = 201;
+  optional CosineSimilarityBatchParameter cosine_similarity_batch_param = 202;
+  optional RandomSamplingSoftmaxLossParameter rss_loss_param = 203;
+  optional NormalizeParameter norm_param = 204;
+  optional ROIWarpingParameter roi_warping_param = 205;
+  optional PSROIPoolingParameter psroi_pooling_param = 207;
+  optional ROIPoolingParameter roi_pooling_param = 208;
+  optional SmoothL1LossParameter smooth_l1_loss_param = 209;
+  optional BoxAnnotatorOHEMParameter box_annotator_ohem_param = 210;
+}
+
+
+message RandomSamplingSoftmaxLossParameter {
+  optional int32 random_sampling_num = 1 [default = 100];
+  optional string random_sampling_policy = 2 [default = "random"];
+}
+
+// Message that stores parameters used by ProposalLayer
+message ProposalParameter {
+  optional uint32 feat_stride = 1 [default = 16];
+  optional uint32 base_size = 2 [default = 16];
+  optional uint32 min_size = 3 [default = 16];
+  repeated float ratio = 4;
+  repeated float scale = 5;
+  optional uint32 pre_nms_topn = 6 [default = 6000];
+  optional uint32 post_nms_topn = 7 [default = 300];
+  optional float nms_thresh = 8 [default = 0.7];
+}
+
+// Message that stores parameters used by NormalizeLayer
+message NormalizeParameter {
+  optional bool across_spatial = 1 [default = true];
+  // Initial value of scale. Default is 1.0 for all
+  optional FillerParameter scale_filler = 2;
+  // Whether or not scale parameters are shared across channels.
+  optional bool channel_shared = 3 [default = true];
+  // Epsilon for not dividing by zero while normalizing variance
+  optional float eps = 4 [default = 1e-10];
 }
 
 message PermuteParameter {
@@ -513,8 +564,10 @@ message LossParameter {
     VALID = 1;
     // Divide by the batch size.
     BATCH_SIZE = 2;
+    // Divide by pre-fixed normalizer
+    PRE_FIXED = 3;
     // Do not normalize the loss.
-    NONE = 3;
+    NONE = 4;
   }
   // For historical reasons, the default normalization for
   // SigmoidCrossEntropyLoss is BATCH_SIZE and *not* VALID.
@@ -523,9 +576,11 @@ message LossParameter {
   // is not specified, then setting this to false will be equivalent to
   // normalization = BATCH_SIZE to be consistent with previous behavior.
   optional bool normalize = 2;
+  //pre-fixed normalizer
+  optional float pre_fixed_normalizer = 4 [default = 1];
   // label frequencies
-  optional bool weight_by_label_freqs = 4 [default = false];
-  repeated float class_weighting = 5;
+  optional bool weight_by_label_freqs = 5 [default = false];
+  repeated float class_weighting = 6;
 }
 
 // Messages that store parameters used by individual layer types follow, in
@@ -580,6 +635,11 @@ message BatchNormParameter {
   // Small value to add to the variance estimate so that we don't divide by
   // zero.
   optional float eps = 3 [default = 1e-5];
+}
+
+message BoxAnnotatorOHEMParameter {
+  required uint32 roi_per_img = 1; // number of rois for training
+  optional int32 ignore_label = 2 [default = -1]; // ignore_label in scoring
 }
 
 message BiasParameter {
@@ -1030,6 +1090,12 @@ message PowerParameter {
   optional float shift = 3 [default = 0.0];
 }
 
+message PSROIPoolingParameter {
+   required float spatial_scale = 1;
+   required int32 output_dim = 2; // output channel number
+   required int32 group_size = 3; // number of groups to encode position-sensitive score maps
+ }
+
 message PythonParameter {
   optional string module = 1;
   optional string layer = 2;
@@ -1187,6 +1253,36 @@ message ReverseParameter {
   optional int32 axis = 1 [default = 0];
 }
 
+// Message that stores parameters used by ROIPoolingLayer
+message ROIPoolingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+
+message ROIWarpingTestParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+message ROIWarpingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+
 message ScaleParameter {
   // The first axis of bottom[0] (the first input Blob) along which to apply
   // bottom[1] (the second input Blob).  May be negative to index from the end
@@ -1242,6 +1338,13 @@ message SliceParameter {
 
   // DEPRECATED: alias for "axis" -- does not support negative indexing.
   optional uint32 slice_dim = 1 [default = 1];
+}
+
+message SmoothL1LossParameter {
+  // SmoothL1Loss(x) =
+  //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
+  //   |x| - 0.5 / sigma / sigma -- otherwise
+  optional float sigma = 1 [default = 1];
 }
 
 // Message that stores parameters used by SoftmaxLayer, SoftmaxWithLossLayer

@@ -52,7 +52,7 @@ class HardSpatialTransformerLayerTest : public MultiDeviceTest<TypeParam> {
 
 TYPED_TEST_CASE(HardSpatialTransformerLayerTest, TestDtypesAndDevices);
 
-TYPED_TEST(HardSpatialTransformerLayerTest, TestGradient) {
+TYPED_TEST(HardSpatialTransformerLayerTest, DISABLED_TestGradient) {
   typedef typename TypeParam::Dtype Dtype;
   bool IS_VALID_CUDA = false;
 #ifndef CPU_ONLY
@@ -87,7 +87,7 @@ TYPED_TEST(HardSpatialTransformerLayerTest, TestGradient) {
   }
 }
 
-TYPED_TEST(HardSpatialTransformerLayerTest, TestGradientWithPreDefinedTheta) {
+TYPED_TEST(HardSpatialTransformerLayerTest, DISABLED_TestGradientWithPreDefinedTheta) {
   typedef typename TypeParam::Dtype Dtype;
   bool IS_VALID_CUDA = false;
 #ifndef CPU_ONLY

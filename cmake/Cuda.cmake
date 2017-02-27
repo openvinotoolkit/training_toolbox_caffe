@@ -187,7 +187,7 @@ function(detect_cuDNN)
   find_library(CUDNN_LIBRARY NAMES ${CUDNN_LIB_NAME}
    PATHS ${CUDNN_ROOT} $ENV{CUDNN_ROOT} ${CUDNN_INCLUDE} ${__libpath_hist} ${__libpath_hist}/../lib
    DOC "Path to cuDNN library.")
-  
+
   if(CUDNN_INCLUDE AND CUDNN_LIBRARY)
     set(HAVE_CUDNN  TRUE PARENT_SCOPE)
     set(CUDNN_FOUND TRUE PARENT_SCOPE)
@@ -256,7 +256,7 @@ endif()
 
 # setting nvcc arch flags
 caffe_select_nvcc_arch_flags(NVCC_FLAGS_EXTRA)
-list(APPEND CUDA_NVCC_FLAGS ${NVCC_FLAGS_EXTRA})
+list(APPEND CUDA_NVCC_FLAGS "-std=c++11" ${NVCC_FLAGS_EXTRA})
 message(STATUS "Added CUDA NVCC flags for: ${NVCC_FLAGS_EXTRA_readable}")
 
 # Boost 1.55 workaround, see https://svn.boost.org/trac/boost/ticket/9392 or
