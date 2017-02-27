@@ -236,7 +236,7 @@ void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 void ProposalLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>&,
-                                        const vector<bool>&,
+                                        const vector<bool>& propagate_down,
                                         const vector<Blob<Dtype>*>&) {
   for (int i = 0; i < propagate_down.size(); ++i) {
     if (propagate_down[i]) {
