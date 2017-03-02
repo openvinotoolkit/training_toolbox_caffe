@@ -162,38 +162,44 @@ template <typename Dtype>
 void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
                                        const vector<Blob<Dtype>*>& top)
 {
-  CHECK_EQ(bottom[0]->shape(0), 1) << "Only single item batches are supported";
-
   const Dtype* p_bottom_item = bottom[0]->gpu_data();
   const Dtype* p_d_anchor_item = bottom[1]->gpu_data();
   const Dtype* p_img_info_cpu = bottom[2]->cpu_data();
-  Dtype* p_roi_item = top[0]->mutable_gpu_data();
-  Dtype* p_score_item = (top.size() > 1) ? top[1]->mutable_gpu_data() : NULL;
 
   vector<int> proposals_shape(2);
   vector<int> top_shape(2);
   proposals_shape[0] = 0;
   proposals_shape[1] = 5;
-  top_shape[0] = 0;
+  top_shape[0] = bottom[0]->shape(0) * post_nms_topn_;
   top_shape[1] = 5;
+  top[0]->Reshape(top_shape);
+  if (top.size() > 1) {
+    top[1]->Reshape(vector<int>({top_shape[0]}));
+  }
+  top_shape[0] = 0;
+
+  Dtype* p_roi_item = top[0]->mutable_gpu_data();
+  Dtype* p_score_item = (top.size() > 1) ? top[1]->mutable_gpu_data() : NULL;
+
+  // bottom shape: (2 x num_anchors) x H x W
+  const int bottom_H = bottom[0]->height();
+  const int bottom_W = bottom[0]->width();
+  // input image height & width
+  const Dtype img_H = p_img_info_cpu[0];
+  const Dtype img_W = p_img_info_cpu[1];
+  // scale factor for height & width
+  const Dtype scale_H = p_img_info_cpu[2];
+  const Dtype scale_W = p_img_info_cpu[3];
+  // minimum box width & height
+  const Dtype min_box_H = min_size_ * scale_H;
+  const Dtype min_box_W = min_size_ * scale_W;
+  // number of all proposals = num_anchors * H * W
+  const int num_proposals = anchors_.shape(0) * bottom_H * bottom_W;
+  // number of top-n proposals before NMS
+  const int pre_nms_topn = std::min(num_proposals,  pre_nms_topn_);
 
   for (int n = 0; n < bottom[0]->shape(0); ++n) {
-    // bottom shape: (2 x num_anchors) x H x W
-    const int bottom_H = bottom[0]->height();
-    const int bottom_W = bottom[0]->width();
-    // input image height & width
-    const Dtype img_H = p_img_info_cpu[0];
-    const Dtype img_W = p_img_info_cpu[1];
-    // scale factor for height & width
-    const Dtype scale_H = p_img_info_cpu[2];
-    const Dtype scale_W = p_img_info_cpu[3];
-    // minimum box width & height
-    const Dtype min_box_H = min_size_ * scale_H;
-    const Dtype min_box_W = min_size_ * scale_W;
-    // number of all proposals = num_anchors * H * W
-    const int num_proposals = anchors_.shape(0) * bottom_H * bottom_W;
-    // number of top-n proposals before NMS
-    const int pre_nms_topn = std::min(num_proposals,  pre_nms_topn_);
+
     // number of final RoIs
     int num_rois = 0;
 
@@ -224,6 +230,12 @@ void ProposalLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         p_roi_item,  p_score_item);
     CUDA_POST_KERNEL_CHECK;
 
+    p_roi_item += top_shape[1] * num_rois;
+    if (top.size() > 1) {
+      p_score_item += num_rois;
+    }
+    p_bottom_item += 2 * num_proposals;
+    p_d_anchor_item += 4 * num_proposals;
     top_shape[0] += num_rois;
   }
 
