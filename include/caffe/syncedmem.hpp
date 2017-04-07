@@ -34,6 +34,7 @@ inline void CaffeMallocHost(void** ptr, size_t size, bool* use_cuda) {
 }
 
 inline void CaffeFreeHost(void* ptr, bool use_cuda) {
+  (void)use_cuda;
 #ifndef CPU_ONLY
   if (use_cuda) {
     CUDA_CHECK(cudaFreeHost(ptr));
