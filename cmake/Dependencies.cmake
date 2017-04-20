@@ -132,16 +132,25 @@ if(NOT APPLE)
     list(GET RETURN_STRING 2 MKL_EXTERNAL)
     set(MKL_INCLUDE_DIR "${MKL_ROOT_DIR}/include/")
     if( ${MKL_EXTERNAL} EQUAL 1 )
-      set(MKL_LIBRARIES "${MKL_ROOT_DIR}/lib/lib${MKL_LIBRARIES}.so")
+      file(COPY ${MKL_ROOT_DIR}/lib/lib${MKL_LIBRARIES}.so
+           DESTINATION ${CMAKE_BINARY_DIR}/lib)
     else()
-      set(MKL_LIBRARIES "${MKL_ROOT_DIR}/lib/intel64/lib${MKL_LIBRARIES}.so")
+      file(COPY ${MKL_ROOT_DIR}/lib/intel64/lib${MKL_LIBRARIES}.so
+           DESTINATION ${CMAKE_BINARY_DIR}/lib)
     endif()
-    install(FILES ${MKL_LIBRARIES} DESTINATION lib)
+
+    set(Adhoc_MKL ${MKL_LIBRARIES})
+
+    add_library(${Adhoc_MKL} SHARED IMPORTED)
+    set_property(TARGET ${Adhoc_MKL} PROPERTY IMPORTED_LOCATION  ${CMAKE_BINARY_DIR}/lib/lib${MKL_LIBRARIES}.so)
+    set_property(TARGET ${Adhoc_MKL} PROPERTY IMPORTED_NO_SONAME TRUE)
+
     install(DIRECTORY ${MKL_INCLUDE_DIR} DESTINATION include)
+    install(FILES ${CMAKE_BINARY_DIR}/lib/lib${MKL_LIBRARIES}.so DESTINATION lib)
+
     message(STATUS "Found MKL: ${MKL_INCLUDE_DIR}")
     message(STATUS "Found MKL (include: ${MKL_INCLUDE_DIR}, lib: ${MKL_LIBRARIES}")
     include_directories(SYSTEM ${MKL_INCLUDE_DIR})
-    list(APPEND Caffe_LINKER_LIBS ${MKL_LIBRARIES})
     add_definitions(-DUSE_MKL)
     # If MKL and OpenMP is to be used then use Intel OpenMP
     if(OPENMP_FOUND)
