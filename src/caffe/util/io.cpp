@@ -162,6 +162,47 @@ bool ReadFileToDatum(const string& filename, const int label,
   }
 }
 
+bool MapLabelToName(const LabelMap& map, const bool strict_check,
+    std::map<int, string>* label_to_name) {
+  // cleanup
+  label_to_name->clear();
+
+  for (int i = 0; i < map.item_size(); ++i) {
+    const string& name = map.item(i).name();
+    const int label = map.item(i).label();
+    if (strict_check) {
+      if (!label_to_name->insert(std::make_pair(label, name)).second) {
+        LOG(FATAL) << "There are many duplicates of label: " << label;
+        return false;
+      }
+    } else {
+      (*label_to_name)[label] = name;
+    }
+  }
+  return true;
+}
+
+bool MapLabelToDisplayName(const LabelMap& map, const bool strict_check,
+    std::map<int, string>* label_to_display_name) {
+  // cleanup
+  label_to_display_name->clear();
+
+  for (int i = 0; i < map.item_size(); ++i) {
+    const string& display_name = map.item(i).display_name();
+    const int label = map.item(i).label();
+    if (strict_check) {
+      if (!label_to_display_name->insert(
+              std::make_pair(label, display_name)).second) {
+        LOG(FATAL) << "There are many duplicates of label: " << label;
+        return false;
+      }
+    } else {
+      (*label_to_display_name)[label] = display_name;
+    }
+  }
+  return true;
+}
+
 #ifdef USE_OPENCV
 cv::Mat DecodeDatumToCVMatNative(const Datum& datum) {
   cv::Mat cv_img;

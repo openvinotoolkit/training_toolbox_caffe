@@ -129,6 +129,22 @@ inline bool ReadImageToDatum(const string& filename, const int label,
 bool DecodeDatumNative(Datum* datum);
 bool DecodeDatum(Datum* datum, bool is_color);
 
+bool MapLabelToName(const LabelMap& map, const bool strict_check,
+                    std::map<int, string>* label_to_name);
+
+inline bool MapLabelToName(const LabelMap& map,
+                           std::map<int, string>* label_to_name) {
+  return MapLabelToName(map, true, label_to_name);
+}
+
+bool MapLabelToDisplayName(const LabelMap& map, const bool strict_check,
+                           std::map<int, string>* label_to_display_name);
+
+inline bool MapLabelToDisplayName(const LabelMap& map,
+                              std::map<int, string>* label_to_display_name) {
+  return MapLabelToDisplayName(map, true, label_to_display_name);
+}
+
 #ifdef USE_OPENCV
 cv::Mat ReadImageToCVMat(const string& filename,
     const int height, const int width, const bool is_color);
