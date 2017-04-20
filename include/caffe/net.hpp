@@ -10,6 +10,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/layer.hpp"
+#include "caffe/profile.hpp"
 #include "caffe/proto/caffe.pb.h"
 
 namespace caffe {
@@ -330,6 +331,11 @@ class Net {
   size_t memory_used_;
   /// Whether to compute and display debug info for the net.
   bool debug_info_;
+  /// Variables for profiling.  
+  bool profile_info_;
+  int profile_iter_;
+  int profile_warmup_;
+  ProfilingStat profile_stat_;
   // Callbacks
   vector<Callback*> before_forward_;
   vector<Callback*> after_forward_;

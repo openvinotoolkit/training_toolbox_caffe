@@ -12,6 +12,7 @@
 #include "caffe/net.hpp"
 #include "caffe/parallel.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/util/benchmark.hpp"
 #include "caffe/util/hdf5.hpp"
 #include "caffe/util/insert_splits.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -254,6 +255,17 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   }
   ShareWeights();
   debug_info_ = param.debug_info();
+
+  profile_info_ = param.profile_info();
+  profile_iter_ = param.profile_iter();
+  profile_warmup_ = param.profile_warmup();
+  if (profile_info_) {
+    LOG(INFO) << "Profiling is on.";
+    LOG(INFO) << "\t profile_warmup " << profile_warmup_;
+    LOG(INFO) << "\t profile_iter " << profile_iter_;
+    profile_stat_.forward_time_per_layer.resize(layers_.size(), 0.0);
+    profile_stat_.backward_time_per_layer.resize(layers_.size(), 0.0);
+  }
   LOG_IF(INFO, Caffe::root_solver()) << "Network initialization done.";
 }
 
@@ -519,17 +531,58 @@ Dtype Net<Dtype>::ForwardFromTo(int start, int end) {
   CHECK_GE(start, 0);
   CHECK_LT(end, layers_.size());
   Dtype loss = 0;
-  for (int i = start; i <= end; ++i) {
-    for (int c = 0; c < before_forward_.size(); ++c) {
-      before_forward_[c]->run(i);
+  if (!profile_info_ || profile_stat_.forward_iteration < profile_warmup_ ||
+      profile_stat_.forward_iteration > profile_warmup_ + profile_iter_) {
+    for (int i = start; i <= end; ++i) {
+      for (int c = 0; c < before_forward_.size(); ++c) {
+        before_forward_[c]->run(i);
+      }
+      Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
+      loss += layer_loss;
+      if (debug_info_) { ForwardDebugInfo(i); }
+      for (int c = 0; c < after_forward_.size(); ++c) {
+        after_forward_[c]->run(i);
+      }
     }
-    Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
-    loss += layer_loss;
-    if (debug_info_) { ForwardDebugInfo(i); }
-    for (int c = 0; c < after_forward_.size(); ++c) {
-      after_forward_[c]->run(i);
+  } else {
+    Timer forward_timer;
+    Timer timer;
+
+    forward_timer.Start();
+    for (int i = start; i <= end; ++i) {
+      for (int c = 0; c < before_forward_.size(); ++c) {
+        before_forward_[c]->run(i);
+      }
+      timer.Start();
+      Dtype layer_loss = layers_[i]->Forward(bottom_vecs_[i], top_vecs_[i]);
+      profile_stat_.forward_time_per_layer[i] += timer.MicroSeconds();
+      loss += layer_loss;
+      if (debug_info_) { ForwardDebugInfo(i); }
+      for (int c = 0; c < after_forward_.size(); ++c) {
+        after_forward_[c]->run(i);
+      }
+    }
+    profile_stat_.forward_time += forward_timer.MicroSeconds();
+
+    if (profile_stat_.forward_iteration == (profile_warmup_ + profile_iter_)) {
+      LOG(INFO) << "FORWARD PROFILE RESULTS";
+      LOG(INFO) << profile_stat_.forward_iteration;
+      LOG(INFO) << profile_warmup_;
+      LOG(INFO) << profile_iter_;
+      LOG(INFO) << "Average time per layer: ";
+      for (int i = 0; i < layers_.size(); ++i) {
+        const caffe::string& layername = layers_[i]->layer_param().name();
+        LOG(INFO) << std::setfill(' ') << std::setw(10) << layername
+                  << "\tforward: "
+                  << profile_stat_.forward_time_per_layer[i] / 1000 /
+                         profile_iter_
+                  << " ms.";
+      }
+      LOG(INFO) << "Average Forward pass: "
+                << profile_stat_.forward_time / 1000 / profile_iter_ << " ms.";
     }
   }
+  profile_stat_.forward_iteration++;
   return loss;
 }
 
@@ -569,19 +622,59 @@ template <typename Dtype>
 void Net<Dtype>::BackwardFromTo(int start, int end) {
   CHECK_GE(end, 0);
   CHECK_LT(start, layers_.size());
-  for (int i = start; i >= end; --i) {
-    for (int c = 0; c < before_backward_.size(); ++c) {
-      before_backward_[c]->run(i);
+  if (!profile_info_ || profile_stat_.backward_iteration < profile_warmup_ ||
+      profile_stat_.backward_iteration > profile_warmup_ + profile_iter_) {
+    for (int i = start; i >= end; --i) {
+      for (int c = 0; c < before_backward_.size(); ++c) {
+        before_backward_[c]->run(i);
+      }
+      if (layer_need_backward_[i]) {
+        layers_[i]->Backward(
+            top_vecs_[i], bottom_need_backward_[i], bottom_vecs_[i]);
+        if (debug_info_) { BackwardDebugInfo(i); }
+      }
+      for (int c = 0; c < after_backward_.size(); ++c) {
+        after_backward_[c]->run(i);
+      }
     }
-    if (layer_need_backward_[i]) {
-      layers_[i]->Backward(
-          top_vecs_[i], bottom_need_backward_[i], bottom_vecs_[i]);
-      if (debug_info_) { BackwardDebugInfo(i); }
+  } else {
+    Timer backward_timer;
+    Timer timer;
+
+    backward_timer.Start();
+    for (int i = start; i >= end; --i) {
+      for (int c = 0; c < before_backward_.size(); ++c) {
+        before_backward_[c]->run(i);
+      }
+      if (layer_need_backward_[i]) {
+        timer.Start();
+        layers_[i]->Backward(
+              top_vecs_[i], bottom_need_backward_[i], bottom_vecs_[i]);
+        profile_stat_.backward_time_per_layer[i] += timer.MicroSeconds();
+        if (debug_info_) { BackwardDebugInfo(i); }
+      }
+      for (int c = 0; c < after_backward_.size(); ++c) {
+        after_backward_[c]->run(i);
+      }
     }
-    for (int c = 0; c < after_backward_.size(); ++c) {
-      after_backward_[c]->run(i);
+    profile_stat_.backward_time += backward_timer.MicroSeconds();
+
+    if (profile_stat_.backward_iteration == profile_warmup_ + profile_iter_) {
+      LOG(INFO) << "BACKWARD PROFILE RESULTS";
+      LOG(INFO) << "Average time per layer: ";
+      for (int i = 0; i < layers_.size(); ++i) {
+        const caffe::string& layername = layers_[i]->layer_param().name();
+        LOG(INFO) << std::setfill(' ') << std::setw(10) << layername
+                  << "\tbackward: "
+                  << profile_stat_.backward_time_per_layer[i] / 1000 /
+                         profile_iter_
+                  << " ms.";
+      }
+      LOG(INFO) << "Average Backward pass: "
+                << profile_stat_.backward_time / 1000 / profile_iter_ << " ms.";
     }
   }
+  profile_stat_.backward_iteration++;
 }
 
 template <typename Dtype>
