@@ -643,17 +643,31 @@ message ArgMaxParameter {
 }
 
 message ChannelPermutationAction {
-  required uint32 chan = 1;  // destination channel
-  optional uint32 copy = 2;  // source channel for channel copy
-  optional float fill = 3;  // value for channel fill (float for both single-precision and double-precision Caffe)
+  // Destination channel.
+  required uint32 chan = 1;
+  // Source channel for channel copy operation.  No source channel shall be
+  // used more than once.
+  optional uint32 copy = 2;
+  // Value for channel fill operation (float for both single- and
+  // double-precision Caffe).
+  optional float fill = 3;
 }
 
 message ChannelPermutationParameter {
+  // Sequence of actions ordered by increasing value of chan.
+  // The missing values of chan (i.e. top channel indices) are assumed to be
+  // copy operations from bottom channels with the same channel index.
   repeated ChannelPermutationAction action = 1;
 
+  // Number out output channels
   required uint32 num_output = 16;
+  // When true, tells layer that copying/filling channels in-place in
+  // the given order would give correct result.
   optional bool inplace_possible = 17 [default = false];
-  optional int32 version = 18 [default = 0];  // this message format version is 1
+  // Version field is used to check compatibility between layer implementation
+  // and layer parameters in model prototxt file.
+  // Version number of this message format is 1.
+  optional int32 version = 18 [default = 0];
 }
 
 message ConcatParameter {
