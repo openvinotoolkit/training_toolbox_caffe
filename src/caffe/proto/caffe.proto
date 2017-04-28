@@ -1302,6 +1302,11 @@ message PriorBoxParameter {
 
   // Offset to the top left corner of each cell.
   optional float offset = 13 [default = 0.5];
+
+  // width (in pixels).
+  repeated float width = 14;
+  // height (in pixels).
+  repeated float height = 15;
 }
 
 message PSROIPoolingParameter {
