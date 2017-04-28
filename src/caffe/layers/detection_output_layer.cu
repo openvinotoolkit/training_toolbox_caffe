@@ -152,23 +152,23 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
       }
       for (int j = 0; j < indices.size(); ++j) {
         int idx = indices[j];
-        top_data[count * 7] = i;
+        /*top_data[count * 7] = i;
         top_data[count * 7 + 1] = label;
         top_data[count * 7 + 2] = cur_conf_data[idx];
         for (int k = 0; k < 4; ++k) {
           top_data[count * 7 + 3 + k] = cur_bbox_data[idx * 4 + k];
-        }
+        }*/
         if (need_save_) {
           // Generate output bbox.
           NormalizedBBox bbox;
-          bbox.set_xmin(top_data[count * 7 + 3]);
-          bbox.set_ymin(top_data[count * 7 + 4]);
-          bbox.set_xmax(top_data[count * 7 + 5]);
-          bbox.set_ymax(top_data[count * 7 + 6]);
+          bbox.set_xmin(cur_bbox_data[idx * 4 + 0]);
+          bbox.set_ymin(cur_bbox_data[idx * 4 + 1]);
+          bbox.set_xmax(cur_bbox_data[idx * 4 + 2]);
+          bbox.set_ymax(cur_bbox_data[idx * 4 + 3]);
           NormalizedBBox out_bbox;
           OutputBBox(bbox, sizes_[name_count_], has_resize_, resize_param_,
                      &out_bbox);
-          float score = top_data[count * 7 + 2];
+          float score = cur_conf_data[idx];
           float xmin = out_bbox.xmin();
           float ymin = out_bbox.ymin();
           float xmax = out_bbox.xmax();
@@ -287,15 +287,6 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
         detections_.clear();
       }
     }
-  }
-  if (visualize_) {
-#ifdef USE_OPENCV
-    vector<cv::Mat> cv_imgs;
-    this->data_transformer_->TransformInv(bottom[3], &cv_imgs);
-    vector<cv::Scalar> colors = GetColors(label_to_display_name_.size());
-    VisualizeBBox(cv_imgs, top[0], visualize_threshold_, colors,
-        label_to_display_name_, save_file_);
-#endif  // USE_OPENCV
   }
 }
 
