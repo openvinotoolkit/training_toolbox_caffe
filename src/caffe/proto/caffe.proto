@@ -453,6 +453,7 @@ message LayerParameter {
   optional ArgMaxParameter argmax_param = 103;
   optional BatchNormParameter batch_norm_param = 139;
   optional BiasParameter bias_param = 141;
+  optional ChannelPermutationParameter channel_permutation_param = 8082;
   optional ConcatParameter concat_param = 104;
   optional ContrastiveLossParameter contrastive_loss_param = 105;
   optional ConvolutionParameter convolution_param = 106;
@@ -642,6 +643,34 @@ message ArgMaxParameter {
   // By default ArgMaxLayer maximizes over the flattened trailing dimensions
   // for each index of the first / num dimension.
   optional int32 axis = 3;
+}
+
+message ChannelPermutationAction {
+  // Destination channel.
+  required uint32 chan = 1;
+  // Source channel for channel copy operation.  No source channel shall be
+  // used more than once.
+  optional uint32 copy = 2;
+  // Value for channel fill operation (float for both single- and
+  // double-precision Caffe).
+  optional float fill = 3;
+}
+
+message ChannelPermutationParameter {
+  // Sequence of actions ordered by increasing value of chan.
+  // The missing values of chan (i.e. top channel indices) are assumed to be
+  // copy operations from bottom channels with the same channel index.
+  repeated ChannelPermutationAction action = 1;
+
+  // Number out output channels
+  required uint32 num_output = 16;
+  // When true, tells layer that copying/filling channels in-place in
+  // the given order would give correct result.
+  optional bool inplace_possible = 17 [default = false];
+  // Version field is used to check compatibility between layer implementation
+  // and layer parameters in model prototxt file.
+  // Version number of this message format is 1.
+  optional int32 version = 18 [default = 0];
 }
 
 message ConcatParameter {
