@@ -8,8 +8,8 @@ namespace caffe {
 
 template <typename Dtype>
 void GRNLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top) {
-  (*top)[0]->Reshape(bottom[0]->num(), bottom[0]->channels(),
+                              const vector<Blob<Dtype>*>& top) {
+  top[0]->Reshape(bottom[0]->num(), bottom[0]->channels(),
       bottom[0]->height(), bottom[0]->width());
   sum_multiplier_.Reshape(1, bottom[0]->channels(), 1, 1);
   Dtype* multiplier_data = sum_multiplier_.mutable_cpu_data();
@@ -97,6 +97,7 @@ STUB_GPU(GRNLayer);
 #endif
 
 INSTANTIATE_CLASS(GRNLayer);
+REGISTER_LAYER_CLASS(GRN);
 
 
 }  // namespace caffe

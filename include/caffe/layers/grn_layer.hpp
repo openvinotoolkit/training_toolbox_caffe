@@ -20,7 +20,7 @@ class GRNLayer : public Layer<Dtype> {
   explicit GRNLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {}
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-      vector<Blob<Dtype>*>* top);
+      const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "GRN"; }
   virtual inline int ExactNumBottomBlobs() const { return 1; }
