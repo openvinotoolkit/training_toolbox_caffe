@@ -19,6 +19,8 @@ class GRNLayer : public Layer<Dtype> {
  public:
   explicit GRNLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {}
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
@@ -36,6 +38,8 @@ class GRNLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
+  /// bias is used to prevent from zero division
+  Dtype bias_;
   /// sum_multiplier is used to carry out sum using BLAS 1 x ch x 1 x 1
   Blob<Dtype> sum_multiplier_;
   /// square result n X ch x h x w

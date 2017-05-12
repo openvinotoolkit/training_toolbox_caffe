@@ -7,6 +7,14 @@
 namespace caffe {
 
 template <typename Dtype>
+void GRNLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+    const vector<Blob<Dtype>*>& top) {
+  GRNParameter param = this->layer_param().grn_param();
+  bias_ = param.bias();
+  CHECK_GE(bias_, 0.0) << "Bias must be >=0.";
+}
+
+template <typename Dtype>
 void GRNLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
                               const vector<Blob<Dtype>*>& top) {
   top[0]->Reshape(bottom[0]->num(), bottom[0]->channels(),
@@ -43,6 +51,8 @@ void GRNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     caffe_cpu_gemv<Dtype>(CblasTrans, channels, spatial_dim, 1.,
         square_data + i * dim, sum_multiplier_.cpu_data(), 0.,
         norm_data + i * spatial_dim);
+    // add bias to prevent zero division
+    caffe_add_scalar<Dtype>(spatial_dim, bias_, norm_data + i * spatial_dim);
     // root the square norm_data
     caffe_powx<Dtype>(spatial_dim, norm_data + i * spatial_dim, 0.5,
         norm_data + i * spatial_dim);
