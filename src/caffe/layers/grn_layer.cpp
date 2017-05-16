@@ -74,7 +74,7 @@ void GRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* norm_data = norm_.mutable_cpu_data();
   Dtype* temp_dot_data = temp_dot_.mutable_cpu_data();
-  Dtype* temp_data = square_.mutable_cpu_data();//just reuse the square_
+  Dtype* temp_data = square_.mutable_cpu_data();  //just reuse the square_
   int num = top[0]->num();
   int channels = top[0]->channels();
   int dim = top[0]->count() / top[0]->num();
