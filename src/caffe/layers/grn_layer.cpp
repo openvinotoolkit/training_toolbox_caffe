@@ -81,15 +81,12 @@ void GRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   int spatial_dim = top[0]->height() * top[0]->width();
   caffe_copy(top[0]->count(), top_diff, bottom_diff);
   for (int i = 0; i < num; ++i) {
-    // b_diff = t_diff / norm - dot(t_diff, t_data) / (norm)^2 * bottom_data
-    // compute dot(top_diff, top_data)
     for (int k = 0; k < spatial_dim; ++k) {
       temp_dot_data[i * spatial_dim + k] = caffe_cpu_strided_dot<Dtype>(channels,
           top_diff + i * dim + k, spatial_dim,
           top_data + i * dim + k, spatial_dim)  /  
           ( norm_data[i * spatial_dim + k] * norm_data[i * spatial_dim + k] );
     }
-    // b_diff = t_diff / norm - dot(t_diff, t_data) / (norm)^2 * bottom_data
     for (int j = 0; j < channels; j++) {
       caffe_div(spatial_dim, bottom_diff + top[0]->offset(i, j), 
           norm_data + i * spatial_dim, bottom_diff + top[0]->offset(i, j));
