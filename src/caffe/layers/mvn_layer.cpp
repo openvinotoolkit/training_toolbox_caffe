@@ -50,7 +50,8 @@ void MVNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
   if (this->layer_param_.mvn_param().normalize_variance()) {
     // compute variance using var(X) = E((X-EX)^2)
-    caffe_sqr(bottom[0]->count(), top_data, temp_.mutable_cpu_data());  // (X-EX)^2
+    caffe_powx(bottom[0]->count(), top_data, Dtype(2),
+        temp_.mutable_cpu_data());  // (X-EX)^2
     caffe_cpu_gemv<Dtype>(CblasNoTrans, num, dim, 1. / dim, temp_.cpu_data(),
         sum_multiplier_.cpu_data(), 0.,
         variance_.mutable_cpu_data());  // E((X-EX)^2)

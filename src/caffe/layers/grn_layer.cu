@@ -95,6 +95,10 @@ template <typename Dtype>
 void GRNLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
+  if (!propagate_down[0]) {
+    return;
+  }
+
   const Dtype* top_diff = top[0]->gpu_diff();
   const Dtype* top_data = top[0]->gpu_data();
   Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();

@@ -10,9 +10,7 @@
 namespace caffe {
 
 /**
- * @brief Global Response Normalizion with L2 .
- *
- * TODO(dox): thorough documentation for Forward, Backward, and proto params.
+ * @brief Global Response Normalization with L2 norm.
  */
 template <typename Dtype>
 class GRNLayer : public Layer<Dtype> {

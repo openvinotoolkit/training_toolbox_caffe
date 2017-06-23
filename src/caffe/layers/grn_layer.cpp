@@ -17,13 +17,10 @@ void GRNLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void GRNLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
                               const vector<Blob<Dtype>*>& top) {
-  top[0]->Reshape(bottom[0]->num(), bottom[0]->channels(),
-      bottom[0]->height(), bottom[0]->width());
+  top[0]->ReshapeLike(*bottom[0]);
   sum_multiplier_.Reshape(1, bottom[0]->channels(), 1, 1);
   Dtype* multiplier_data = sum_multiplier_.mutable_cpu_data();
-  for (int i = 0; i < sum_multiplier_.count(); ++i) {
-    multiplier_data[i] = 1.;
-  }
+  caffe_set(sum_multiplier_.count(), static_cast<Dtype>(1), multiplier_data);
   square_.Reshape(bottom[0]->num(), bottom[0]->channels(),
       bottom[0]->height(), bottom[0]->width());
   norm_.Reshape(bottom[0]->num(), 1, bottom[0]->height(), bottom[0]->width());
@@ -43,9 +40,9 @@ void GRNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   int spatial_dim = bottom[0]->height() * bottom[0]->width();
   caffe_copy(bottom[0]->count(), bottom_data, top_data);
   caffe_copy(bottom[0]->count(), bottom_data, square_data);
-  // do the normalizition.
+  // do the normalization.
   for (int i = 0; i < num; ++i) {
-    // squre each element
+    // square each element
     caffe_sqr<Dtype>(dim, square_data + i * dim, square_data + i * dim);
     // sum cross the channel
     caffe_cpu_gemv<Dtype>(CblasTrans, channels, spatial_dim, 1.,
@@ -68,6 +65,10 @@ template <typename Dtype>
 void GRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
                                    const vector<bool>& propagate_down,
                                    const vector<Blob<Dtype>*>& bottom) {
+  if (!propagate_down[0]) {
+    return;
+  }
+
   const Dtype* top_diff = top[0]->cpu_diff();
   const Dtype* top_data = top[0]->cpu_data();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
