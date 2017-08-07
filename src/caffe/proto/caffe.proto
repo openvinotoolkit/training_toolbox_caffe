@@ -1850,27 +1850,4 @@ message RegionParameter {
   optional int32 coords = 1 [default = 4];
   optional int32 classes = 2 [default = 20];
   optional int32 num = 3 [default = 1];
-
-  optional int32 log = 4 [default = 0];
-  optional int32 sqrt = 5 [default = 0];
-
-  optional int32 softmax = 6 [default = 0];
-  optional int32 background = 7 [default = 0];
-  optional int32 max = 8 [default = 30];
-  optional float jitter = 9 [default = 0.2];
-  optional int32 rescore = 10 [default = 0];
-
-  optional float thresh = 11 [default = 0.5];
-  optional int32 classfix = 12 [default = 0];
-  optional int32 absolute = 13 [default = 0];
-  optional float random = 14 [default = 0];
-
-  optional float coord_scale = 15 [default = 1.0];
-  optional float object_scale = 16 [default = 1.0];
-  optional float noobject_scale = 17 [default = 1.0];
-  optional float mask_scale = 18 [default = 1.0];
-  optional float class_scale = 19 [default = 1.0];
-  optional int32 bias_match = 20 [default = 1];
-
-  repeated string anchors = 21;
 }

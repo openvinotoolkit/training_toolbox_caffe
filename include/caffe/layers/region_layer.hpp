@@ -7,6 +7,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include <fstream>
 
 namespace caffe {
 
@@ -17,9 +18,13 @@ template <typename Dtype>
 class RegionLayer : public Layer<Dtype> {
  public:
   explicit RegionLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
+      : Layer<Dtype>(param) {
+    }
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
+
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+          const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "Region"; }
 
@@ -35,19 +40,16 @@ class RegionLayer : public Layer<Dtype> {
      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   int coords_, classes_, num_;
-  int log_, sqrt_;
+private:
+  Dtype logistic_activate(Dtype x);
 
-  int softmax_, background_, max_;
-  float jitter_;
-  int rescore_;
+  void activate_array(Dtype *x, const int n);
 
-  float thresh_;
-  int classfix_, absolute_;
-  float random_;
+  void softmax(const Dtype *input, int n, int stride, Dtype *output);
 
-  float coord_scale_, object_scale_, noobject_scale_, mask_scale_, class_scale_;
-  int bias_match_;
-  std::string anchors_;
+  void softmax_cpu(const Dtype *input, int n, int batch, int batch_offset, int groups, int group_offset, int stride, Dtype *output);
+
+  int entry_index(int w, int h, int coords, int classes, int outputs, int batch, int location, int entry);
 };
 
 }  // namespace caffe

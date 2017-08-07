@@ -1,5 +1,5 @@
 #include <vector>
-
+#include <float.h>
 #include "caffe/layers/region_layer.hpp"
 
 namespace caffe {
@@ -7,47 +7,114 @@ namespace caffe {
 template <typename Dtype>
 void RegionLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-//  const TileParameter& tile_param = this->layer_param_.tile_param();
-//  axis_ = bottom[0]->CanonicalAxisIndex(tile_param.axis());
-//  CHECK(tile_param.has_tiles()) << "Number of tiles must be specified";
-//  tiles_ = tile_param.tiles();
-//  CHECK_GT(tiles_, 0) << "Number of tiles must be positive.";
-//  vector<int> top_shape = bottom[0]->shape();
-//  top_shape[axis_] = bottom[0]->shape(axis_) * tiles_;
-//  top[0]->Reshape(top_shape);
-//  outer_dim_ = bottom[0]->count(0, axis_);
-//  inner_dim_ = bottom[0]->count(axis_);
+    /*std::vector<int> newShape(4);
+    newShape[0] = 1;
+    newShape[1] = 1;
+    newShape[2] = 1;
+    newShape[3] = top[0]->shape(1)*top[0]->shape(2)*top[0]->shape(3);
+    top[0]->Reshape(newShape);*/
+    top[0]->ReshapeLike(*bottom[0]);
 }
 
 template <typename Dtype>
-void RegionLayer<Dtype>::Forward_cpu(
-    const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  /*const Dtype* bottom_data = bottom[0]->cpu_data();
-  Dtype* top_data = top[0]->mutable_cpu_data();
-  for (int i = 0; i < outer_dim_; ++i) {
-    for (int t = 0; t < tiles_; ++t) {
-      caffe_copy(inner_dim_, bottom_data, top_data);
-      top_data += inner_dim_;
+void RegionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {
+
+    RegionParameter region_param = this->layer_param_.region_param();
+    classes_ = region_param.classes();
+    coords_ = region_param.coords();
+    num_ = region_param.num();
+}
+
+template <typename Dtype>
+Dtype RegionLayer<Dtype>::logistic_activate(Dtype x){return 1./(1. + exp(-x));}
+
+template <typename Dtype>
+void RegionLayer<Dtype>::activate_array(Dtype *x, const int n)
+{
+    for (int i = 0; i < n; ++i){
+        x[i] = logistic_activate(x[i]);
     }
-    bottom_data += inner_dim_;
-}*/
+}
+
+template <typename Dtype>
+void RegionLayer<Dtype>::softmax(const Dtype *input, int n, int stride, Dtype *output)
+{
+    Dtype largest = -FLT_MAX;
+    for (int i = 0; i < n; ++i){
+        if (input[i*stride] > largest) largest = input[i*stride];
+    }
+
+    Dtype sum = 0;
+    for (int i = 0; i < n; ++i){
+        Dtype e = exp(input[i*stride] - largest);
+        sum += e;
+        output[i*stride] = e;
+    }
+
+    for (int i = 0; i < n; ++i){
+        output[i * stride] /= sum;
+    }
+}
+
+
+template <typename Dtype>
+void RegionLayer<Dtype>::softmax_cpu(const Dtype *input, int n, int batch, int batch_offset,
+                                     int groups, int group_offset, int stride,
+                                     Dtype *output)
+{
+    for (int b = 0; b < batch; ++b){
+        for (int g = 0; g < groups; ++g){
+            softmax(input + b * batch_offset + g * group_offset,
+                    n, stride,
+                    output + b * batch_offset + g * group_offset);
+        }
+    }
+}
+
+template <typename Dtype>
+int RegionLayer<Dtype>::entry_index(int w, int h, int coords, int classes,
+                                    int outputs, int batch, int location,
+                                    int entry)
+{
+    int n = location / (w * h);
+    int loc = location % (w * h);
+    return batch * outputs + n * w * h*(coords + classes + 1) + entry * w * h + loc;
+}
+
+template <typename Dtype>
+void RegionLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  const Dtype *bottom_data = bottom[0]->cpu_data();
+  Dtype *top_data = top[0]->mutable_cpu_data();
+
+  int batch = top[0]->shape(0);
+  int channels = top[0]->shape(1);
+  int width = top[0]->shape(2);
+  int height = top[0]->shape(3);
+
+  caffe_copy(width*height*channels*batch, bottom_data, top_data);
+
+  int inputs = height*width*num_*(classes_ + coords_ + 1);
+  for (int b = 0; b < batch; ++b){
+      for (int n = 0; n < num_; ++n){
+          int index = entry_index(width, height, coords_, classes_, inputs, b, n*width*height, 0);
+          activate_array(top_data + index, 2*width*height);
+
+          index = entry_index(width, height, coords_, classes_, inputs, b, n * width * height, coords_);
+          activate_array(top_data + index, width*height);
+      }
+  }
+
+  int index = entry_index(width, height, coords_, classes_, inputs, 0, 0, coords_ + 1);
+  softmax_cpu(bottom_data + index, classes_, batch*num_, inputs / num_, width * height, 1, width * height, top_data + index);
+
+  return;
 }
 
 template <typename Dtype>
 void RegionLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  if (!propagate_down[0]) { return; }
-  /*const Dtype* top_diff = top[0]->cpu_diff();
-  Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
-  for (int i = 0; i < outer_dim_; ++i) {
-    caffe_copy(inner_dim_, top_diff, bottom_diff);
-    top_diff += inner_dim_;
-    for (int t = 1; t < tiles_; ++t) {
-      caffe_axpy(inner_dim_, Dtype(1), top_diff, bottom_diff);
-      top_diff += inner_dim_;
-    }
-    bottom_diff += inner_dim_;
-}*/
+    return;
 }
 
 #ifdef CPU_ONLY

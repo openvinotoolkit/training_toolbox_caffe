@@ -5,7 +5,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/filler.hpp"
-#include "caffe/layers/tile_layer.hpp"
+#include "caffe/layers/region_layer.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 #include "caffe/test/test_gradient_check_util.hpp"
@@ -41,22 +41,47 @@ class RegionLayerTest : public MultiDeviceTest<TypeParam> {
   vector<Blob<Dtype>*> blob_top_vec_;
 };
 
-TYPED_TEST_CASE(RegionLayerTest, TestDtypesAndDevices);
+TYPED_TEST_CASE(RegionLayerTest, ::testing::Types<CPUDevice<float> >);
 
-TYPED_TEST(RegionLayerTest, TestTrivialSetup) {
-  typedef typename TypeParam::Dtype Dtype;
+TYPED_TEST(RegionLayerTest, onDataFromDarknet) {
   LayerParameter layer_param;
-  ASSERT_EQ(0, 1);
-  /*const int kNumTiles = 1;
-  layer_param.mutable_tile_param()->set_tiles(kNumTiles);
-  for (int i = 0; i < this->blob_bottom_->num_axes(); ++i) {
-    layer_param.mutable_tile_param()->set_axis(i);
-    RegionLayer<Dtype> layer(layer_param);
-    layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-    ASSERT_EQ(this->blob_top_->num_axes(), this->blob_bottom_->num_axes());
-    for (int j = 0; j < this->blob_bottom_->num_axes(); ++j) {
-      EXPECT_EQ(this->blob_top_->shape(j), this->blob_bottom_->shape(j));
-    }
-  }*/
+  RegionParameter *region_param = layer_param.mutable_region_param();
+  const int num = 5;
+  const int coords = 4;
+  const int classes = 20;
+  const size_t batch = 1;
+  const size_t width = 13, height = 13, channels = 125;
+  const size_t count = width * height * channels;
+
+  region_param->set_num(num);
+  region_param->set_coords(coords);
+  region_param->set_classes(classes);
+  std::ifstream in("../src/caffe/test/test_data/region_reference_data/dog_in.bin", std::ios::binary);
+  float *inBuf = new float[count];
+  in.read((char *)inBuf, count * sizeof(float));
+  in.close();
+
+  in.open("../src/caffe/test/test_data/region_reference_data/dog_ref_out.bin", std::ios::binary);
+  float *outBufRef = new float[count];
+  in.read((char *)outBufRef, count * sizeof(float));
+  in.close();
+
+  vector<Blob<float> *> bottom;
+  Blob<float> *bottomBlob = new Blob<float>(batch, channels, width, height);
+  bottomBlob->set_cpu_data(inBuf);
+  bottom.push_back(bottomBlob);
+
+  vector<Blob<float> *> top;
+  Blob<float> *topBlob = new Blob<float>(batch, channels, width, height);
+  top.push_back(topBlob);
+
+  RegionLayer<float> layer(layer_param);
+  layer.SetUp(bottom, top);
+  layer.Forward(bottom,top);
+
+  for (int i = 0; i < count; i++) {
+    ASSERT_FLOAT_EQ(outBufRef[i], topBlob->cpu_data()[i]);
+  }
 }
+
 }  // namespace caffe
