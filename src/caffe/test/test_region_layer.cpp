@@ -56,12 +56,12 @@ TYPED_TEST(RegionLayerTest, onDataFromDarknet) {
   region_param->set_num(num);
   region_param->set_coords(coords);
   region_param->set_classes(classes);
-  std::ifstream in("../src/caffe/test/test_data/region_reference_data/dog_in.bin", std::ios::binary);
+  std::ifstream in("../src/caffe/test/test_data/region_reference_data/dog_in.data", std::ios::binary);
   float *inBuf = new float[count];
   in.read((char *)inBuf, count * sizeof(float));
   in.close();
 
-  in.open("../src/caffe/test/test_data/region_reference_data/dog_ref_out.bin", std::ios::binary);
+  in.open("../src/caffe/test/test_data/region_reference_data/dog_ref_out.data", std::ios::binary);
   float *outBufRef = new float[count];
   in.read((char *)outBufRef, count * sizeof(float));
   in.close();
