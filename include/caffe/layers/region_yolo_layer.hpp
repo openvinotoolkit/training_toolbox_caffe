@@ -15,9 +15,9 @@ namespace caffe {
  * @brief Copy a Blob along specified dimensions.
  */
 template <typename Dtype>
-class RegionLayer : public Layer<Dtype> {
+class RegionYoloLayer : public Layer<Dtype> {
  public:
-  explicit RegionLayer(const LayerParameter& param)
+  explicit RegionYoloLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {
     }
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,

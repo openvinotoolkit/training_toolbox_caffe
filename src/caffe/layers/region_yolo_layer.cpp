@@ -1,36 +1,30 @@
 #include <vector>
 #include <float.h>
-#include "caffe/layers/region_layer.hpp"
+#include "caffe/layers/region_yolo_layer.hpp"
 
 namespace caffe {
 
 template <typename Dtype>
-void RegionLayer<Dtype>::Reshape(
+void RegionYoloLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-    /*std::vector<int> newShape(4);
-    newShape[0] = 1;
-    newShape[1] = 1;
-    newShape[2] = 1;
-    newShape[3] = top[0]->shape(1)*top[0]->shape(2)*top[0]->shape(3);
-    top[0]->Reshape(newShape);*/
     top[0]->ReshapeLike(*bottom[0]);
 }
 
 template <typename Dtype>
-void RegionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void RegionYoloLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
-    RegionParameter region_param = this->layer_param_.region_param();
-    classes_ = region_param.classes();
-    coords_ = region_param.coords();
-    num_ = region_param.num();
+    RegionYoloParameter region_yolo_param = this->layer_param_.region_yolo_param();
+    classes_ = region_yolo_param.classes();
+    coords_ = region_yolo_param.coords();
+    num_ = region_yolo_param.num();
 }
 
 template <typename Dtype>
-Dtype RegionLayer<Dtype>::logistic_activate(Dtype x){return 1./(1. + exp(-x));}
+Dtype RegionYoloLayer<Dtype>::logistic_activate(Dtype x){return 1./(1. + exp(-x));}
 
 template <typename Dtype>
-void RegionLayer<Dtype>::activate_array(Dtype *x, const int n)
+void RegionYoloLayer<Dtype>::activate_array(Dtype *x, const int n)
 {
     for (int i = 0; i < n; ++i){
         x[i] = logistic_activate(x[i]);
@@ -38,7 +32,7 @@ void RegionLayer<Dtype>::activate_array(Dtype *x, const int n)
 }
 
 template <typename Dtype>
-void RegionLayer<Dtype>::softmax(const Dtype *input, int n, int stride, Dtype *output)
+void RegionYoloLayer<Dtype>::softmax(const Dtype *input, int n, int stride, Dtype *output)
 {
     Dtype largest = -FLT_MAX;
     for (int i = 0; i < n; ++i){
@@ -57,9 +51,8 @@ void RegionLayer<Dtype>::softmax(const Dtype *input, int n, int stride, Dtype *o
     }
 }
 
-
 template <typename Dtype>
-void RegionLayer<Dtype>::softmax_cpu(const Dtype *input, int n, int batch, int batch_offset,
+void RegionYoloLayer<Dtype>::softmax_cpu(const Dtype *input, int n, int batch, int batch_offset,
                                      int groups, int group_offset, int stride,
                                      Dtype *output)
 {
@@ -73,7 +66,7 @@ void RegionLayer<Dtype>::softmax_cpu(const Dtype *input, int n, int batch, int b
 }
 
 template <typename Dtype>
-int RegionLayer<Dtype>::entry_index(int w, int h, int coords, int classes,
+int RegionYoloLayer<Dtype>::entry_index(int w, int h, int coords, int classes,
                                     int outputs, int batch, int location,
                                     int entry)
 {
@@ -83,7 +76,7 @@ int RegionLayer<Dtype>::entry_index(int w, int h, int coords, int classes,
 }
 
 template <typename Dtype>
-void RegionLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+void RegionYoloLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   const Dtype *bottom_data = bottom[0]->cpu_data();
   Dtype *top_data = top[0]->mutable_cpu_data();
 
@@ -112,16 +105,16 @@ void RegionLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, const v
 }
 
 template <typename Dtype>
-void RegionLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+void RegionYoloLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
     return;
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(RegionLayer);
+STUB_GPU(RegionYoloLayer);
 #endif
 
-INSTANTIATE_CLASS(RegionLayer);
-REGISTER_LAYER_CLASS(Region);
+INSTANTIATE_CLASS(RegionYoloLayer);
+REGISTER_LAYER_CLASS(RegionYolo);
 
 }  // namespace caffe
