@@ -397,11 +397,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-<<<<<<< 4801e752bd26e36bfe6efc726b7512b28bc33551
-// LayerParameter next available layer-specific ID: 215 (last added: region_yolo_param)
-=======
 // LayerParameter next available layer-specific ID: 216 (last added: reorg_yolo_param)
->>>>>>> add reorg yolo layer; add test and test data
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -522,12 +518,9 @@ message LayerParameter {
   optional BoxAnnotatorOHEMParameter box_annotator_ohem_param = 210;
   optional DetectionOutputParameter detection_output_param = 211;
   optional PriorBoxParameter prior_box_param = 212;
-<<<<<<< 4801e752bd26e36bfe6efc726b7512b28bc33551
-  optional RegionYoloParameter region_yolo_param = 214;
-=======
 
+  optional RegionYoloParameter region_yolo_param = 214;
   optional ReorgYoloParameter reorg_yolo_param = 215;
->>>>>>> add reorg yolo layer; add test and test data
 }
 
 
