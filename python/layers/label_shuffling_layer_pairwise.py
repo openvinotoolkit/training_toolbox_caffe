@@ -197,9 +197,9 @@ class LabelShufflingLayerPairwise(caffe.Layer):
             height = self.data_shape_[0]
 
             min_factor = 0
-            max_factor_left_right = 0.1
-            max_factor_top = 0.1
-            max_factor_bottom = 0.2
+            max_factor_left_right = 0.05
+            max_factor_top = 0.05
+            max_factor_bottom = 0.05
 
             distance_from_edge_left = int(np.random.uniform(min_factor, max_factor_left_right) * width)
             right_edge = int(width * (1 - np.random.uniform(min_factor, max_factor_left_right)))
