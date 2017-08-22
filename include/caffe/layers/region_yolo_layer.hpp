@@ -27,6 +27,8 @@ class RegionYoloLayer : public Layer<Dtype> {
           const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "Region"; }
+  virtual inline int ExactNumBottomBlobs() const { return 1; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
 
  protected:
  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
@@ -41,15 +43,15 @@ class RegionYoloLayer : public Layer<Dtype> {
 
   int coords_, classes_, num_;
 private:
-  Dtype logistic_activate(Dtype x);
+  inline int entry_index(int width, int height, int coords, int classes, int outputs, int batch, int location, int entry) const {
+      int n = location / (width * height);
+      int loc = location % (width * height);
+      return batch * outputs + n * width * height * (coords + classes + 1) + entry * width * height + loc;
+  }
 
-  void activate_array(Dtype *x, const int n);
+  inline Dtype logistic_activate(Dtype x) { return 1./(1. + exp(-x)); }
 
   void softmax(const Dtype *input, int n, int stride, Dtype *output);
-
-  void softmax_cpu(const Dtype *input, int n, int batch, int batch_offset, int groups, int group_offset, int stride, Dtype *output);
-
-  int entry_index(int w, int h, int coords, int classes, int outputs, int batch, int location, int entry);
 };
 
 }  // namespace caffe

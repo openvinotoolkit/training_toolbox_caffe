@@ -7,8 +7,6 @@ namespace caffe {
 template <typename Dtype>
 void RegionYoloLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-    CHECK_NE(top[0], bottom[0]) << this->type() << " Layer does not "
-        "allow in-place computation.";
     const int start_axis = bottom[0]->CanonicalAxisIndex(
         this->layer_param_.flatten_param().axis());
     const int end_axis = bottom[0]->CanonicalAxisIndex(
@@ -37,58 +35,23 @@ void RegionYoloLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-Dtype RegionYoloLayer<Dtype>::logistic_activate(Dtype x){return 1./(1. + exp(-x));}
-
-template <typename Dtype>
-void RegionYoloLayer<Dtype>::activate_array(Dtype *x, const int n)
-{
-    for (int i = 0; i < n; ++i){
-        x[i] = logistic_activate(x[i]);
-    }
-}
-
-template <typename Dtype>
-void RegionYoloLayer<Dtype>::softmax(const Dtype *input, int n, int stride, Dtype *output)
+void RegionYoloLayer<Dtype>::softmax(const Dtype *input, int classes, int stride, Dtype *output)
 {
     Dtype largest = -FLT_MAX;
-    for (int i = 0; i < n; ++i){
+    for (int i = 0; i < classes; ++i){
         if (input[i*stride] > largest) largest = input[i*stride];
     }
 
     Dtype sum = 0;
-    for (int i = 0; i < n; ++i){
+    for (int i = 0; i < classes; ++i){
         Dtype e = exp(input[i*stride] - largest);
         sum += e;
         output[i*stride] = e;
     }
 
-    for (int i = 0; i < n; ++i){
+    for (int i = 0; i < classes; ++i){
         output[i * stride] /= sum;
     }
-}
-
-template <typename Dtype>
-void RegionYoloLayer<Dtype>::softmax_cpu(const Dtype *input, int n, int batch, int batch_offset,
-                                     int groups, int group_offset, int stride,
-                                     Dtype *output)
-{
-    for (int b = 0; b < batch; ++b){
-        for (int g = 0; g < groups; ++g){
-            softmax(input + b * batch_offset + g * group_offset,
-                    n, stride,
-                    output + b * batch_offset + g * group_offset);
-        }
-    }
-}
-
-template <typename Dtype>
-int RegionYoloLayer<Dtype>::entry_index(int w, int h, int coords, int classes,
-                                    int outputs, int batch, int location,
-                                    int entry)
-{
-    int n = location / (w * h);
-    int loc = location % (w * h);
-    return batch * outputs + n * w * h*(coords + classes + 1) + entry * w * h + loc;
 }
 
 template <typename Dtype>
@@ -107,15 +70,30 @@ void RegionYoloLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, con
   for (int b = 0; b < batch; ++b){
       for (int n = 0; n < num_; ++n){
           int index = entry_index(width, height, coords_, classes_, inputs, b, n*width*height, 0);
-          activate_array(top_data + index, 2*width*height);
+          for (int i = index; i < index + 2*width*height; ++i){
+            top_data[i] = logistic_activate(top_data[i]);
+          }
 
           index = entry_index(width, height, coords_, classes_, inputs, b, n * width * height, coords_);
-          activate_array(top_data + index, width*height);
+          for (int i = index; i < index + width*height; ++i){
+            top_data[i] = logistic_activate(top_data[i]);
+          }
       }
   }
 
   int index = entry_index(width, height, coords_, classes_, inputs, 0, 0, coords_ + 1);
-  softmax_cpu(bottom_data + index, classes_, batch*num_, inputs / num_, width * height, 1, width * height, top_data + index);
+
+  int batchOffset = inputs / num_;
+  int groups = width * height;
+  int groupOffset = 1;
+  int stride = width * height;
+  for (int b = 0; b < batch*num_; ++b) {
+    for (int g = 0; g < groups; ++g) {
+      softmax(bottom_data + index + b * batchOffset + g * groupOffset,
+              classes_, stride,
+              top_data + index + b * batchOffset + g * groupOffset);
+    }
+  }
 
   return;
 }
