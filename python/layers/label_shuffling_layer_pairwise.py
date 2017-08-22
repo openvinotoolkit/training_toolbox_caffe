@@ -175,6 +175,9 @@ class LabelShufflingLayerPairwise(caffe.Layer):
             labels_left_all += labels_left
             labels_right_all += labels_right
 
+        sum_pair_label_vals = sum([v for one_el_list in pair_label for v in one_el_list])
+        percents_same_label = round(100 * float(sum_pair_label_vals) / len(pair_label))
+        print "The generated batch contains {}% pairs with same labels and {}% pairs with different labels".format(percents_same_label, 100-percents_same_label)
         return imgs_left, imgs_right, pair_label
 
     def convert_to_caffe_layout(self, img):
