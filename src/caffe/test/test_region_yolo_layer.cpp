@@ -43,12 +43,12 @@ TYPED_TEST(RegionYoloLayerTest, onDataFromDarknet) {
   region_yolo_param->set_num(num);
   region_yolo_param->set_coords(coords);
   region_yolo_param->set_classes(classes);
-  std::ifstream in("../src/caffe/test/test_data/region_reference_data/dog_in.data", std::ios::binary);
+  std::ifstream in("../src/caffe/test/test_data/yolov2/region_in.data", std::ios::binary);
   float *inBuf = new float[count];
   in.read((char *)inBuf, count * sizeof(float));
   in.close();
 
-  in.open("../src/caffe/test/test_data/region_reference_data/dog_ref_out.data", std::ios::binary);
+  in.open("../src/caffe/test/test_data/yolov2/region_ref.data", std::ios::binary);
   float *outBufRef = new float[count];
   in.read((char *)outBufRef, count * sizeof(float));
   in.close();
