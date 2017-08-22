@@ -122,8 +122,9 @@ void RegionYoloLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, con
 
 template <typename Dtype>
 void RegionYoloLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
-    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-    return;
+                                          const vector<bool>& propagate_down,
+                                          const vector<Blob<Dtype>*>& bottom) {
+  NOT_IMPLEMENTED;
 }
 
 #ifdef CPU_ONLY
