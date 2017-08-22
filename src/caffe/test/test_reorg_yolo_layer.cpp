@@ -55,17 +55,17 @@ TYPED_TEST(ReorgYoloLayerTest, onDataFromDarknet) {
   bottom.push_back(bottomBlob);
 
   vector<Blob<float> *> top;
-  vector<int> shape;
-  shape.push_back(1);
-  shape.push_back(channels * stride * stride);
-  shape.push_back(height / stride);
-  shape.push_back(width  / stride);
-  Blob<float> *topBlob = new Blob<float>(shape);
+  vector<int> topShape;
+  topShape.push_back(1);
+  topShape.push_back(channels * stride * stride);
+  topShape.push_back(height / stride);
+  topShape.push_back(width  / stride);
+  Blob<float> *topBlob = new Blob<float>(topShape);
   top.push_back(topBlob);
 
   ReorgYoloLayer<float> layer(layer_param);
   layer.SetUp(bottom, top);
-  layer.Forward(bottom,top);
+  layer.Forward(bottom, top);
 
   for (int i = 0; i < count; i++) {
     ASSERT_FLOAT_EQ(outBufRef[i], topBlob->cpu_data()[i]);

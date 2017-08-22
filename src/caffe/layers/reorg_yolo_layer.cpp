@@ -40,25 +40,26 @@ void ReorgYoloLayer<Dtype>::Forward_cpu(
   int height = bottom[0]->shape(2);
   int width = bottom[0]->shape(3);
 
-  int out_c = channels / (stride_*stride_);
-  for (int b = 0; b < batch; ++b) {
-      for (int c = 0; c < channels; ++c) {
-          for (int y = 0; y < height; ++y) {
-              for(int x = 0; x < width; ++x) {
-                  int in_index  = x + width*y + width*height*c + width*height*channels*b;
+  int outChannels = channels / (stride_*stride_);
+  for (int ib = 0; ib < batch; ++ib) {
+    for (int ic = 0; ic < channels; ++ic) {
+      for (int iy = 0; iy < height; ++iy) {
+        for (int ix = 0; ix < width; ++ix) {
+          int inIndex  = ix + iy*width + ic*width*height + ib*width*height*channels;
 
-                  int c2 = c % out_c;
-                  int offset = c / out_c;
+          int oc = ic % outChannels;
+          int offset = ic / outChannels;
 
-                  int w2 = x*stride_ + offset % stride_;
-                  int h2 = y*stride_ + offset / stride_;
+          int ow = ix*stride_ + offset % stride_;
+          int oh = iy*stride_ + offset / stride_;
 
-                  int out_index = w2 + width*stride_*h2 + width*stride_*height*stride_*c2 + width*stride_*height*stride_*out_c*b;
-                  top_data[in_index] = bottom_data[out_index];
-              }
-          }
+          int outIndex = ow + oh*width*stride_ + oc*width*stride_*height*stride_ + ib*width*stride_*height*stride_*outChannels;
+          top_data[inIndex] = bottom_data[outIndex];
+        }
       }
+    }
   }
+
   return;
 }
 
