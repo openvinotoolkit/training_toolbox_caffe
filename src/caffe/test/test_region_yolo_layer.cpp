@@ -45,38 +45,38 @@ TYPED_TEST(RegionYoloLayerTest, onDataFromDarknet) {
   region_yolo_param->set_classes(classes);
   std::ifstream in(CMAKE_SOURCE_DIR "caffe/test/test_data/yolov2/region_in.data", std::ios::binary);
   ASSERT_TRUE(in.is_open());
-  float *inBuf = new float[count];
-  in.read((char *)inBuf, count * sizeof(float));
+  float *in_buf = new float[count];
+  in.read((char *)in_buf, count * sizeof(float));
   in.close();
 
   in.open(CMAKE_SOURCE_DIR "caffe/test/test_data/yolov2/region_ref.data", std::ios::binary);
   ASSERT_TRUE(in.is_open());
-  float *outBufRef = new float[count];
-  in.read((char *)outBufRef, count * sizeof(float));
+  float *out_buf_ref = new float[count];
+  in.read((char *)out_buf_ref, count * sizeof(float));
   in.close();
 
   vector<Blob<float> *> bottom;
-  Blob<float> *bottomBlob = new Blob<float>(batch, channels,width, height);
-  bottomBlob->set_cpu_data(inBuf);
-  bottom.push_back(bottomBlob);
+  Blob<float> *bottom_blob = new Blob<float>(batch, channels,width, height);
+  bottom_blob->set_cpu_data(in_buf);
+  bottom.push_back(bottom_blob);
 
   vector<Blob<float> *> top;
   vector<int> shape;
   shape.push_back(1);
   shape.push_back(channels * width * height);
-  Blob<float> *topBlob = new Blob<float>(shape);
-  top.push_back(topBlob);
+  Blob<float> *top_blob = new Blob<float>(shape);
+  top.push_back(top_blob);
 
   RegionYoloLayer<float> layer(layer_param);
   layer.SetUp(bottom, top);
   layer.Forward(bottom,top);
 
   for (int i = 0; i < count; i++) {
-    ASSERT_FLOAT_EQ(outBufRef[i], topBlob->cpu_data()[i]);
+    ASSERT_FLOAT_EQ(out_buf_ref[i], top_blob->cpu_data()[i]);
   }
 
-  delete []inBuf;
-  delete []outBufRef;
+  delete []in_buf;
+  delete []out_buf_ref;
 }
 
 }  // namespace caffe
