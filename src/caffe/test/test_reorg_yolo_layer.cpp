@@ -39,12 +39,14 @@ TYPED_TEST(ReorgYoloLayerTest, onDataFromDarknet) {
   const size_t count = batch * width * height * channels;
 
   reorg_yolo_param->set_stride(stride);
-  std::ifstream in("../src/caffe/test/test_data/yolov2/reorg_in.data", std::ios::binary);
+  std::ifstream in(CMAKE_SOURCE_DIR "caffe/test/test_data/yolov2/reorg_in.data", std::ios::binary);
+  ASSERT_TRUE(in.is_open());
   float *inBuf = new float[count];
   in.read((char *)inBuf, count * sizeof(float));
   in.close();
 
-  in.open("../src/caffe/test/test_data/yolov2/reorg_ref.data", std::ios::binary);
+  in.open(CMAKE_SOURCE_DIR "caffe/test/test_data/yolov2/reorg_ref.data", std::ios::binary);
+  ASSERT_TRUE(in.is_open());
   float *outBufRef = new float[count];
   in.read((char *)outBufRef, count * sizeof(float));
   in.close();
@@ -70,6 +72,9 @@ TYPED_TEST(ReorgYoloLayerTest, onDataFromDarknet) {
   for (int i = 0; i < count; i++) {
     ASSERT_FLOAT_EQ(outBufRef[i], topBlob->cpu_data()[i]);
   }
+
+  delete []inBuf;
+  delete []outBufRef;
 }
 
 }  // namespace caffe
