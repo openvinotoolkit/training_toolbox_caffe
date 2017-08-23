@@ -12,7 +12,7 @@
 namespace caffe {
 
 /**
- * @brief Copy a Blob along specified dimensions.
+ * @brief Region yolo
  */
 template <typename Dtype>
 class RegionYoloLayer : public Layer<Dtype> {
