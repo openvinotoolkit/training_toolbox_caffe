@@ -2,12 +2,10 @@
 #define CAFFE_REGION_LAYER_HPP_
 
 #include <vector>
-#include <string>
 
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
-#include <fstream>
 
 namespace caffe {
 
