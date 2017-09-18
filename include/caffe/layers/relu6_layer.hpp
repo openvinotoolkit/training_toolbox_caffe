@@ -12,7 +12,7 @@
 namespace caffe {
 
 /**
- * @brief Rectified Linear Unit non-linearity @f$ y = \max(0, x) @f$.
+ * @brief Rectified Linear Unit 6 non-linearity @f$ y = \min(max(0, x), n) @f$.
  *        The simple max is fast to compute, and the function does not saturate.
  */
 template <typename Dtype>
@@ -21,9 +21,8 @@ class ReLU6Layer : public NeuronLayer<Dtype> {
   /**
    * @param param provides ReLUParameter relu_param,
    *     with ReLULayer options:
-   *   - negative_slope (\b optional, default 0).
    *   - n (\b optional, default 6)
-   *     the value @f$ \nu @f$ by which negative values are multiplied.
+   *     the value @f$ n @f$ by which is a limit for maximum feature response.
    */
   explicit ReLU6Layer(const LayerParameter& param)
       : NeuronLayer<Dtype>(param) {}
@@ -39,8 +38,7 @@ class ReLU6Layer : public NeuronLayer<Dtype> {
    *   -# @f$ (N \times C \times H \times W) @f$
    *      the computed outputs @f$
    *        y = \min(max(0, x), n)
-   *      @f$ by default.  If a non-zero negative_slope @f$ \nu @f$ is provided,
-   *      the computed outputs are @f$ y = \max(0, x) + \nu \min(0, x) @f$.
+   *      @f$.
    */
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -62,18 +60,10 @@ class ReLU6Layer : public NeuronLayer<Dtype> {
    *      gradients @f$
    *        \frac{\partial E}{\partial x} = \left\{
    *        \begin{array}{lr}
-   *            0 & \mathrm{if} \; x \le 0 \\
-   *            \frac{\partial E}{\partial y} & \mathrm{if} \; x > 0
+   *            0 & \mathrm{if} \; x \le 0 \ or \ x \ge n \\
+   *            \frac{\partial E}{\partial y} & \mathrm{if} \; 0 < x > n
    *        \end{array} \right.
-   *      @f$ if propagate_down[0], by default.
-   *      If a non-zero negative_slope @f$ \nu @f$ is provided,
-   *      the computed gradients are @f$
-   *        \frac{\partial E}{\partial x} = \left\{
-   *        \begin{array}{lr}
-   *            \nu \frac{\partial E}{\partial y} & \mathrm{if} \; x \le 0 \\
-   *            \frac{\partial E}{\partial y} & \mathrm{if} \; x > 0
-   *        \end{array} \right.
-   *      @f$.
+   *      @f$ if propagate_down[0].
    */
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
