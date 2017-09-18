@@ -521,6 +521,7 @@ message LayerParameter {
 
   optional RegionYoloParameter region_yolo_param = 214;
   optional ReorgYoloParameter reorg_yolo_param = 215;
+  optional ReLU6Parameter relu6_param = 216;
 }
 
 
@@ -1395,6 +1396,12 @@ message ReLUParameter {
     CUDNN = 2;
   }
   optional Engine engine = 2 [default = DEFAULT];
+}
+
+message ReLU6Parameter {
+  // Allows to limit ReLU activation from the top and clip by specified value
+  //
+  optional float n = 1 [default = 6];
 }
 
 message ReshapeParameter {
