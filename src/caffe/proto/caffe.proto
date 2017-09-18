@@ -1399,7 +1399,7 @@ message ReLUParameter {
 }
 
 message ReLU6Parameter {
-  // Allow non-zero slope for negative inputs and less than 6 to speed up optimization
+  // Allows to limit ReLU activation from the top and clip by specified value
   //
   optional float n = 1 [default = 6];
 }
