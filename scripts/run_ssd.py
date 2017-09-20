@@ -105,7 +105,7 @@ if __name__ == '__main__':
             image_id, class_id, score, bbox = get_detection(detection, [frame_width, frame_height])
             if score > args.confidence_threshold:
                 annotation[-1]['objects'].append({'label': class_labels[class_id],
-                                                  'bbox': list(bbox),
+                                                  'bbox': bbox.tolist(),
                                                   'score': score})
 
                 if args.vis or args.video_out is not None:
