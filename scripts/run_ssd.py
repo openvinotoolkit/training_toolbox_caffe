@@ -27,7 +27,6 @@ def get_detection(raw_detection, original_frame_size):
     score = float(raw_detection[2])
     bbox = np.clip(raw_detection[3:7], 0, 1)
     bbox *= np.tile(original_frame_size, 2)
-    bbox = bbox.astype(int)
     return image_id, class_id, score, bbox
 
 
@@ -54,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--delay', default=0, type=int,
                         help='Delay between two frames')
     parser.add_argument('--mean', nargs=3, default=(104, 117, 123), type=float,
-                        help='Pixel mean value to subtracted before feeding the image to the net')
+                        help='Pixel mean value (BGR format) to subtracted before feeding the image to the net')
     parser.add_argument('--video_out', default=None, type=str,
                         help='Path to video file to write resulting images to')
     parser.add_argument('--caption', action='store_true',
@@ -113,6 +112,10 @@ if __name__ == '__main__':
                     caption = None
                     if args.caption:
                         caption = '{} {:.2}'.format(class_labels[class_id], score)
+                    # Bounding box is defined here in the following format: (x_min, y_min, x_max, y_max).
+                    # x_max and y_max are not included in the bounding box, so they could be outside of the frame,
+                    # that's why we should subtract 1 from those values, to draw the point inside the image.
+                    bbox[2:] -= 1
                     draw_rect(frame_src, rect=bbox, caption=caption, color=cyan_color)
 
         if args.vis or args.video_out is not None:
