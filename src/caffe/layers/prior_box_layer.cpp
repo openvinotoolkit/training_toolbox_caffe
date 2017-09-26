@@ -146,7 +146,7 @@ void PriorBoxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       float center_y = (h + offset_) * step_h;
       float box_width, box_height;
       for (int s = 0; s < min_sizes_.size(); ++s) {
-        int min_size_ = min_sizes_[s];
+        float min_size_ = min_sizes_[s];
         // first prior: aspect_ratio = 1, size = min_size
         box_width = box_height = min_size_;
         // xmin
@@ -160,7 +160,7 @@ void PriorBoxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
         if (max_sizes_.size() > 0) {
           CHECK_EQ(min_sizes_.size(), max_sizes_.size());
-          int max_size_ = max_sizes_[s];
+          float max_size_ = max_sizes_[s];
           // second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
           box_width = box_height = sqrt(min_size_ * max_size_);
           // xmin
