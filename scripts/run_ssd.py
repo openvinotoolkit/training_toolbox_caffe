@@ -1,15 +1,18 @@
 import argparse
+import time
+from collections import defaultdict
+from contextlib import contextmanager
 
 import caffe
 import cv2
 import numpy as np
 from caffe.proto import caffe_pb2
-from google.protobuf import text_format
-from tqdm import tqdm
-
-from datasets_toolbox.common.persistence import dump
-from datasets_toolbox.common.image_grabbers import ImageGrabber
 from datasets_toolbox.common.drawing import VideoWriter, draw_rect, fit_image_to_window
+from datasets_toolbox.common.image_grabbers import ImageGrabber
+from datasets_toolbox.common.persistence import dump
+from google.protobuf import text_format
+from six import iteritems
+from tqdm import tqdm
 
 
 def load_labels(label_map_file_path):
@@ -28,6 +31,26 @@ def get_detection(raw_detection, original_frame_size):
     bbox = np.clip(raw_detection[3:7], 0, 1)
     bbox *= np.tile(original_frame_size, 2)
     return image_id, class_id, score, bbox
+
+
+class Timer(object):
+    def __init__(self):
+        super(Timer, self).__init__()
+        self.timers = defaultdict(lambda: [0.0, 0.0])
+
+    @contextmanager
+    def timeit_context(self, name):
+        start_time = time.time()
+        yield
+        elapsed_time = time.time() - start_time
+        self.timers[name][0] += elapsed_time
+        self.timers[name][1] += 1
+
+    def print_stat(self):
+        print('timing:')
+        for name, (total_time, number_of_calls) in iteritems(self.timers):
+            if number_of_calls > 0:
+                print('\t{}: {:.2f} ms'.format(name, total_time / number_of_calls * 1000))
 
 
 if __name__ == '__main__':
@@ -83,48 +106,56 @@ if __name__ == '__main__':
 
     video_out = VideoWriter(args.video_out)
 
+    timer = Timer()
+
     for frame_src, image_name in tqdm(data_provider):
-        frame = np.copy(frame_src)
-        frame = frame.astype(np.float32)
-        frame_height, frame_width = frame.shape[:2]
-        frame = cv2.resize(frame, (input_width, input_height), interpolation=cv2.INTER_LINEAR)
-        frame -= args.mean
-        frame = frame.transpose((2, 0, 1))[np.newaxis, ...]
+        with timer.timeit_context('preprocessing'):
+            frame = np.copy(frame_src)
+            frame = frame.astype(np.float32)
+            frame_height, frame_width = frame.shape[:2]
+            frame = cv2.resize(frame, (input_width, input_height), interpolation=cv2.INTER_LINEAR)
+            frame -= args.mean
+            frame = frame.transpose((2, 0, 1))[np.newaxis, ...]
 
-        output_blobs = net.forward(data=frame)
-        assert args.output_blob_name in output_blobs, \
-            'The net has multiple output blobs and none of them has name "detection_out"'
-        detections = output_blobs[args.output_blob_name].reshape(-1, 7)
+        with timer.timeit_context('forward pass'):
+            output_blobs = net.forward(data=frame)
 
-        annotation.append({'image': image_name,
-                           'objects': []
-                           })
+        with timer.timeit_context('postprocessing'):
+            assert args.output_blob_name in output_blobs, \
+                'The net has multiple output blobs and none of them has name "detection_out"'
+            detections = output_blobs[args.output_blob_name].reshape(-1, 7)
 
-        for detection in detections:
-            image_id, class_id, score, bbox = get_detection(detection, [frame_width, frame_height])
-            if score > args.confidence_threshold:
-                annotation[-1]['objects'].append({'label': class_labels[class_id],
-                                                  'bbox': bbox.tolist(),
-                                                  'score': score})
+            annotation.append({'image': image_name,
+                               'objects': []
+                               })
 
-                if args.vis or args.video_out is not None:
-                    cyan_color = (255, 255, 0)
-                    caption = None
-                    if args.caption:
-                        caption = '{} {:.2}'.format(class_labels[class_id], score)
-                    # Bounding box is defined here in the following format: (x_min, y_min, x_max, y_max).
-                    # x_max and y_max are not included in the bounding box, so they could be outside of the frame,
-                    # that's why we should subtract 1 from those values, to draw the point inside the image.
-                    bbox[2:] -= 1
-                    draw_rect(frame_src, rect=bbox, caption=caption, color=cyan_color)
+            for detection in detections:
+                image_id, class_id, score, bbox = get_detection(detection, [frame_width, frame_height])
+                if score > args.confidence_threshold:
+                    annotation[-1]['objects'].append({'label': class_labels[class_id],
+                                                      'bbox': bbox.tolist(),
+                                                      'score': score})
 
-        if args.vis or args.video_out is not None:
-            frame_src = fit_image_to_window(frame_src, args.window_size)[0]
-        if args.vis:
-            cv2.imshow('detections', frame_src)
-            if cv2.waitKey(args.delay) == 27:
-                break
-        video_out.append(frame_src)
+                    if args.vis or args.video_out is not None:
+                        cyan_color = (255, 255, 0)
+                        caption = None
+                        if args.caption:
+                            caption = '{} {:.2}'.format(class_labels[class_id], score)
+                        # Bounding box is defined here in the following format: (x_min, y_min, x_max, y_max).
+                        # x_max and y_max are not included in the bounding box, so they could be outside of the frame,
+                        # that's why we should subtract 1 from those values, to draw the point inside the image.
+                        bbox[2:] -= 1
+                        draw_rect(frame_src, rect=bbox, caption=caption, color=cyan_color)
+
+            if args.vis or args.video_out is not None:
+                frame_src = fit_image_to_window(frame_src, args.window_size)[0]
+            if args.vis:
+                cv2.imshow('detections', frame_src)
+                if cv2.waitKey(args.delay) == 27:
+                    break
+            video_out.append(frame_src)
+
+    timer.print_stat()
 
     if args.annotation_out_file_path is not None:
         dump(annotation, args.annotation_out_file_path)
