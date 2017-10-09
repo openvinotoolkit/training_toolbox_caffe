@@ -89,6 +89,12 @@ class DetectionOutputLayer : public Layer<Dtype> {
   int top_k_;
   float eta_;
 
+  int input_width;
+  int input_height;
+  int prior_size;
+  bool normalized;
+  int offset;
+
   bool need_save_;
   string output_directory_;
   string output_name_prefix_;

@@ -512,11 +512,13 @@ void DecodeBBoxes(
     const CodeType code_type, const bool variance_encoded_in_target,
     const bool clip_bbox, const vector<NormalizedBBox>& bboxes,
     vector<NormalizedBBox>* decode_bboxes) {
-  CHECK_EQ(prior_bboxes.size(), prior_variances.size());
   CHECK_EQ(prior_bboxes.size(), bboxes.size());
   int num_bboxes = prior_bboxes.size();
-  if (num_bboxes >= 1) {
-    CHECK_EQ(prior_variances[0].size(), 4);
+  if (!variance_encoded_in_target) {
+      CHECK_EQ(prior_bboxes.size(), prior_variances.size());
+      if (num_bboxes >= 1) {
+          CHECK_EQ(prior_variances[0].size(), 4);
+      }
   }
   decode_bboxes->clear();
   for (int i = 0; i < num_bboxes; ++i) {
@@ -562,7 +564,8 @@ void DecodeBBoxesAll(const vector<LabelBBox>& all_loc_preds,
 template <typename Dtype>
 void GetLocPredictions(const Dtype* loc_data, const int num,
       const int num_preds_per_class, const int num_loc_classes,
-      const bool share_location, vector<LabelBBox>* loc_preds) {
+      const bool share_location, vector<LabelBBox>* loc_preds,
+      bool normalized, int width, int height) {
   loc_preds->clear();
   if (share_location) {
     CHECK_EQ(num_loc_classes, 1);
@@ -577,10 +580,19 @@ void GetLocPredictions(const Dtype* loc_data, const int num,
         if (label_bbox.find(label) == label_bbox.end()) {
           label_bbox[label].resize(num_preds_per_class);
         }
-        label_bbox[label][p].set_xmin(loc_data[start_idx + c * 4]);
-        label_bbox[label][p].set_ymin(loc_data[start_idx + c * 4 + 1]);
-        label_bbox[label][p].set_xmax(loc_data[start_idx + c * 4 + 2]);
-        label_bbox[label][p].set_ymax(loc_data[start_idx + c * 4 + 3]);
+
+        if (!normalized) {
+            label_bbox[label][p].set_xmin(loc_data[start_idx + c * 4 + 0] / width);
+            label_bbox[label][p].set_ymin(loc_data[start_idx + c * 4 + 1] / height);
+            label_bbox[label][p].set_xmax(loc_data[start_idx + c * 4 + 2] / width);
+            label_bbox[label][p].set_ymax(loc_data[start_idx + c * 4 + 3] / height);
+        }
+        else {
+            label_bbox[label][p].set_xmin(loc_data[start_idx + c * 4]);
+            label_bbox[label][p].set_ymin(loc_data[start_idx + c * 4 + 1]);
+            label_bbox[label][p].set_xmax(loc_data[start_idx + c * 4 + 2]);
+            label_bbox[label][p].set_ymax(loc_data[start_idx + c * 4 + 3]);
+        }
       }
     }
     loc_data += num_preds_per_class * num_loc_classes * 4;
@@ -590,10 +602,12 @@ void GetLocPredictions(const Dtype* loc_data, const int num,
 // Explicit initialization.
 template void GetLocPredictions(const float* loc_data, const int num,
       const int num_preds_per_class, const int num_loc_classes,
-      const bool share_location, vector<LabelBBox>* loc_preds);
+      const bool share_location, vector<LabelBBox>* loc_preds,
+      bool normalized, int width, int height);
 template void GetLocPredictions(const double* loc_data, const int num,
       const int num_preds_per_class, const int num_loc_classes,
-      const bool share_location, vector<LabelBBox>* loc_preds);
+      const bool share_location, vector<LabelBBox>* loc_preds,
+      bool normalized, int width, int height);
 
 template <typename Dtype>
 void GetConfidenceScores(const Dtype* conf_data, const int num,
@@ -657,38 +671,48 @@ template void GetConfidenceScores(const double* conf_data, const int num,
 template <typename Dtype>
 void GetPriorBBoxes(const Dtype* prior_data, const int num_priors,
       vector<NormalizedBBox>* prior_bboxes,
-      vector<vector<float> >* prior_variances) {
+      vector<vector<float> >* prior_variances, bool variance_encoded_in_target,
+      bool normalized, int width, int height, int prior_size, int offset) {
   prior_bboxes->clear();
   prior_variances->clear();
-  for (int i = 0; i < num_priors; ++i) {
-    int start_idx = i * 4;
+
+  int wscale = normalized ? 1 : width;
+  int hscale = normalized ? 1 : height;
+
+  for (int i = 0; i < num_priors; ++i){
+    int start_idx = i * prior_size;
     NormalizedBBox bbox;
-    bbox.set_xmin(prior_data[start_idx]);
-    bbox.set_ymin(prior_data[start_idx + 1]);
-    bbox.set_xmax(prior_data[start_idx + 2]);
-    bbox.set_ymax(prior_data[start_idx + 3]);
+    bbox.set_xmin(prior_data[start_idx + offset + 0] / wscale);
+    bbox.set_ymin(prior_data[start_idx + offset + 1] / hscale);
+    bbox.set_xmax(prior_data[start_idx + offset + 2] / wscale);
+    bbox.set_ymax(prior_data[start_idx + offset + 3] / hscale);
+
     float bbox_size = BBoxSize(bbox);
     bbox.set_size(bbox_size);
     prior_bboxes->push_back(bbox);
   }
 
-  for (int i = 0; i < num_priors; ++i) {
-    int start_idx = (num_priors + i) * 4;
-    vector<float> var;
-    for (int j = 0; j < 4; ++j) {
-      var.push_back(prior_data[start_idx + j]);
+  if(!variance_encoded_in_target) {
+    for (int i = 0; i < num_priors; ++i) {
+      int start_idx = (num_priors + i) * 4;
+      vector<float> var;
+      for (int j = 0; j < 4; ++j) {
+        var.push_back(prior_data[start_idx + j]);
+      }
+      prior_variances->push_back(var);
     }
-    prior_variances->push_back(var);
   }
 }
 
 // Explicit initialization.
 template void GetPriorBBoxes(const float* prior_data, const int num_priors,
       vector<NormalizedBBox>* prior_bboxes,
-      vector<vector<float> >* prior_variances);
+      vector<vector<float> >* prior_variances, bool v,
+      bool normalized, int width, int height, int prior_size, int offset);
 template void GetPriorBBoxes(const double* prior_data, const int num_priors,
       vector<NormalizedBBox>* prior_bboxes,
-      vector<vector<float> >* prior_variances);
+      vector<vector<float> >* prior_variances, bool v,
+      bool normalized, int width, int height, int prior_size, int offset);
 
 template <typename Dtype>
 void GetDetectionResults(const Dtype* det_data, const int num_det,

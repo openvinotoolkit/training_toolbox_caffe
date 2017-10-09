@@ -1002,6 +1002,12 @@ message DetectionOutputParameter {
   optional float visualize_threshold = 11;
   // If provided, save outputs to video file.
   optional string save_file = 12;
+  // Input width
+  optional int32 input_width = 13 [default = -1];
+  // Input height
+  optional int32 input_height = 14 [default = -1];
+  // If false, bboxes need to be normalized
+  optional bool normalized = 15 [default = true];
 }
 
 message DropoutParameter {
