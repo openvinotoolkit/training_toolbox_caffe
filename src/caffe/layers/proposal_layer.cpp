@@ -220,6 +220,8 @@ void ProposalLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     top_shape.pop_back();
     top[1]->Reshape(top_shape);
   }
+
+  CHECK_GE(bottom[2]->count(), 3) << "Too few elements in img_info";
 }
 
 template <typename Dtype>
@@ -252,7 +254,7 @@ void ProposalLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype img_W = p_img_info_cpu[1];
   // scale factor for height & width
   const Dtype scale_H = p_img_info_cpu[2];
-  const Dtype scale_W = p_img_info_cpu[3];
+  const Dtype scale_W = (bottom[2]->count() > 3) ? p_img_info_cpu[3] : scale_H;
   // minimum box width & height
   const Dtype min_box_H = min_size_ * scale_H;
   const Dtype min_box_W = min_size_ * scale_W;
