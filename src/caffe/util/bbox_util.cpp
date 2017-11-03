@@ -581,18 +581,13 @@ void GetLocPredictions(const Dtype* loc_data, const int num,
           label_bbox[label].resize(num_preds_per_class);
         }
 
-        if (!normalized) {
-            label_bbox[label][p].set_xmin(loc_data[start_idx + c * 4 + 0] / width);
-            label_bbox[label][p].set_ymin(loc_data[start_idx + c * 4 + 1] / height);
-            label_bbox[label][p].set_xmax(loc_data[start_idx + c * 4 + 2] / width);
-            label_bbox[label][p].set_ymax(loc_data[start_idx + c * 4 + 3] / height);
-        }
-        else {
-            label_bbox[label][p].set_xmin(loc_data[start_idx + c * 4]);
-            label_bbox[label][p].set_ymin(loc_data[start_idx + c * 4 + 1]);
-            label_bbox[label][p].set_xmax(loc_data[start_idx + c * 4 + 2]);
-            label_bbox[label][p].set_ymax(loc_data[start_idx + c * 4 + 3]);
-        }
+        int wscale = normalized ? 1 : width;
+        int hscale = normalized ? 1 : height;
+
+        label_bbox[label][p].set_xmin(loc_data[start_idx + c * 4 + 0] / wscale);
+        label_bbox[label][p].set_ymin(loc_data[start_idx + c * 4 + 1] / hscale);
+        label_bbox[label][p].set_xmax(loc_data[start_idx + c * 4 + 2] / wscale);
+        label_bbox[label][p].set_ymax(loc_data[start_idx + c * 4 + 3] / hscale);
       }
     }
     loc_data += num_preds_per_class * num_loc_classes * 4;
