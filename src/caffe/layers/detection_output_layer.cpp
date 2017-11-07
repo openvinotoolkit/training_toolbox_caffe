@@ -28,6 +28,9 @@ void DetectionOutputLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   keep_top_k_ = detection_output_param.keep_top_k();
   confidence_threshold_ = detection_output_param.has_confidence_threshold() ?
       detection_output_param.confidence_threshold() : -FLT_MAX;
+  input_height = detection_output_param.input_height();
+  input_width = detection_output_param.input_width();
+  normalized = detection_output_param.normalized();
   // Parameters used in nms.
   nms_threshold_ = detection_output_param.nms_param().nms_threshold();
   CHECK_GE(nms_threshold_, 0.) << "nms_threshold must be non negative.";
@@ -160,7 +163,10 @@ void DetectionOutputLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       conf_permute_.count(1) != bottom[1]->count(1)) {
     conf_permute_.ReshapeLike(*(bottom[1]));
   }
-  num_priors_ = bottom[2]->height() / 4;
+  prior_size = normalized ? 4 : 5;
+  offset     = normalized ? 0 : 1;
+
+  num_priors_ = bottom[2]->height() / prior_size;
   CHECK_EQ(num_priors_ * num_loc_classes_ * 4, bottom[0]->channels())
       << "Number of priors must match number of location predictions.";
   CHECK_EQ(num_priors_ * num_classes_, bottom[1]->channels())
@@ -187,7 +193,7 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   // Retrieve all location predictions.
   vector<LabelBBox> all_loc_preds;
   GetLocPredictions(loc_data, num, num_priors_, num_loc_classes_,
-                    share_location_, &all_loc_preds);
+                    share_location_, &all_loc_preds, normalized, input_width, input_height);
 
   // Retrieve all confidences.
   vector<map<int, vector<float> > > all_conf_scores;
@@ -198,7 +204,8 @@ void DetectionOutputLayer<Dtype>::Forward_cpu(
   // images in a batch are of same dimension.
   vector<NormalizedBBox> prior_bboxes;
   vector<vector<float> > prior_variances;
-  GetPriorBBoxes(prior_data, num_priors_, &prior_bboxes, &prior_variances);
+  GetPriorBBoxes(prior_data, num_priors_, &prior_bboxes, &prior_variances, variance_encoded_in_target_,
+                 normalized, input_width, input_height, prior_size, offset);
 
   // Decode all loc predictions to bboxes.
   vector<LabelBBox> all_decode_bboxes;
