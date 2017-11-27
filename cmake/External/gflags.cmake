@@ -23,16 +23,24 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     set(GFLAGS_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS})
     set(GFLAGS_C_FLAGS ${CMAKE_C_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS})
 
-    ExternalProject_Add(gflags
+    set(GFLAGS_GIT_REPOSITORY "https://github.com/gflags/gflags.git")
+    set(GFLAGS_GIT_TAG "v2.2.1")
+
+    message(STATUS "Will fetch GFlags ${GFLAGS_GIT_TAG} from GIT at build stage...")
+
+    ExternalProject_Add(
+      gflags
       PREFIX ${gflags_PREFIX}
-      GIT_REPOSITORY "https://github.com/gflags/gflags.git"
-      GIT_TAG "v2.1.2"
+      GIT_REPOSITORY ${GFLAGS_GIT_REPOSITORY}
+      GIT_TAG ${GFLAGS_GIT_TAG}
       UPDATE_COMMAND ""
       INSTALL_DIR ${gflags_INSTALL}
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                  -DCMAKE_INSTALL_PREFIX=${gflags_INSTALL}
                  -DBUILD_SHARED_LIBS=OFF
                  -DBUILD_STATIC_LIBS=ON
+                 -DBUILD_gflags_LIB=ON
+                 -DBUILD_gflags_nothreads_LIB=OFF
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
                  -DBUILD_NC_TESTS=OFF
@@ -40,13 +48,19 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DINSTALL_HEADERS=ON
                  -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS}
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS}
+      GIT_PROGRESS 1
       LOG_DOWNLOAD 1
+      LOG_BUILD 1
       LOG_INSTALL 1
-      )
+    )
 
     set(GFLAGS_FOUND TRUE)
     set(GFLAGS_INCLUDE_DIRS ${gflags_INSTALL}/include)
+if(WIN32)
+    set(GFLAGS_LIBRARIES ${gflags_INSTALL}/lib/gflags_static.lib shlwapi.lib ${CMAKE_THREAD_LIBS_INIT})
+else()
     set(GFLAGS_LIBRARIES ${gflags_INSTALL}/lib/libgflags.a ${CMAKE_THREAD_LIBS_INIT})
+endif()
     set(GFLAGS_LIBRARY_DIRS ${gflags_INSTALL}/lib)
     set(GFLAGS_EXTERNAL TRUE)
 

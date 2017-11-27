@@ -23,6 +23,10 @@ endif()
 # ---[ Google-glog
 include("cmake/External/glog.cmake")
 include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
+    if(WIN32)
+        add_definitions("-DGLOG_NO_ABBREVIATED_SEVERITIES")
+        add_definitions("-DGOOGLE_GLOG_DLL_DECL=")
+    endif()
 list(APPEND Caffe_LINKER_LIBS ${GLOG_LIBRARIES})
 
 # ---[ Google-gflags
@@ -31,7 +35,13 @@ include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
 list(APPEND Caffe_LINKER_LIBS ${GFLAGS_LIBRARIES})
 
 # ---[ Google-protobuf
-include(cmake/ProtoBuf.cmake)
+if(NOT WIN32)
+    include(cmake/ProtoBuf.cmake)
+else()
+    include("cmake/External/ProtoBuf.cmake")
+    include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIRS})
+    list(APPEND Caffe_LINKER_LIBS ${PROTOBUF_LIBRARIES})
+endif()
 
 # ---[ HDF5
 find_package(HDF5 COMPONENTS HL REQUIRED)

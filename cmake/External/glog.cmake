@@ -30,11 +30,17 @@ if (NOT __GLOG_INCLUDED)
       set(GLOG_DEPENDS gflags)
     endif()
 
+    set(GLOG_GIT_REPOSITORY "https://github.com/google/glog")
+    set(GLOG_GIT_TAG "v0.3.5")
+
+    message(STATUS "Will fetch Glog ${GLOG_GIT_TAG} from GIT at build stage...")
+
+if(NOT WIN32)
     ExternalProject_Add(glog
       DEPENDS ${GLOG_DEPENDS}
       PREFIX ${glog_PREFIX}
-      GIT_REPOSITORY "https://github.com/google/glog"
-      GIT_TAG "v0.3.4"
+      GIT_REPOSITORY ${GLOG_GIT_REPOSITORY}
+      GIT_TAG ${GLOG_GIT_TAG}
       UPDATE_COMMAND ""
       INSTALL_DIR ${gflags_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
@@ -43,10 +49,36 @@ if (NOT __GLOG_INCLUDED)
       LOG_CONFIGURE 1
       LOG_INSTALL 1
       )
+else()
+    ExternalProject_Add(glog
+      DEPENDS ${GLOG_DEPENDS}
+      PREFIX ${glog_PREFIX}
+      GIT_REPOSITORY ${GLOG_GIT_REPOSITORY}
+      GIT_TAG ${GLOG_GIT_TAG}
+      UPDATE_COMMAND ""
+      INSTALL_DIR ${gflags_INSTALL}
+      CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                 -DCMAKE_INSTALL_PREFIX=${glog_INSTALL}
+                 -DBUILD_SHARED_LIBS=OFF
+                 -DBUILD_STATIC_LIBS=ON
+                 -DBUILD_PACKAGING=OFF
+                 -DBUILD_TESTING=OFF
+                 -DINSTALL_HEADERS=ON
+                 -DCMAKE_C_FLAGS=${GLOG_C_FLAGS}
+                 -DCMAKE_CXX_FLAGS=${GLOG_CXX_FLAGS}
+      LOG_DOWNLOAD 1
+      LOG_CONFIGURE 1
+      LOG_INSTALL 1
+      )
+endif()
 
     set(GLOG_FOUND TRUE)
     set(GLOG_INCLUDE_DIRS ${glog_INSTALL}/include)
+if(WIN32)
+    set(GLOG_LIBRARIES ${GFLAGS_LIBRARIES} ${glog_INSTALL}/lib/glog.lib)
+else()
     set(GLOG_LIBRARIES ${GFLAGS_LIBRARIES} ${glog_INSTALL}/lib/libglog.a)
+endif()
     set(GLOG_LIBRARY_DIRS ${glog_INSTALL}/lib)
     set(GLOG_EXTERNAL TRUE)
 
@@ -54,4 +86,3 @@ if (NOT __GLOG_INCLUDED)
   endif()
 
 endif()
-
