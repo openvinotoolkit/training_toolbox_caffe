@@ -20,34 +20,40 @@ if (NOT __PROTOBUF_INCLUDED) # guard against multiple includes
     set(PROTOBUF_VERSION_MAJOR 3)
     set(PROTOBUF_VERSION_MINOR 5)
     set(PROTOBUF_VERSION_PATCH 0)
+    set(PROTOBUF_VERSION ${PROTOBUF_VERSION_MAJOR}.${PROTOBUF_VERSION_MINOR}.${PROTOBUF_VERSION_PATCH})
+
+    set(PROTOBUF_GIT_REPOSITORY "https://github.com/google/protobuf.git")
+    set(PROTOBUF_GIT_TAG "v${PROTOBUF_VERSION}")
+
     set(GFLAGS_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS})
     set(GFLAGS_C_FLAGS ${CMAKE_C_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS})
 
+    message(STATUS "Will fetch Protobuf ${PROTOBUF_VERSION} from GIT at build stage...")
+
     ExternalProject_Add(protobuf
       PREFIX ${protobuf_PREFIX}
-      GIT_REPOSITORY "https://github.com/google/protobuf.git"
-      GIT_TAG "v${PROTOBUF_VERSION_MAJOR}.${PROTOBUF_VERSION_MINOR}.${PROTOBUF_VERSION_PATCH}"
+      GIT_REPOSITORY ${PROTOBUF_GIT_REPOSITORY}
+      GIT_TAG ${PROTOBUF_GIT_TAG}
       UPDATE_COMMAND ""
       INSTALL_DIR ${protobuf_INSTALL}
       SOURCE_SUBDIR cmake
-      CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      CMAKE_ARGS -Dprotobuf_VERBOSE=ON
                  -DCMAKE_INSTALL_PREFIX=${protobuf_INSTALL}
-                 -DBUILD_SHARED_LIBS=ON
-                 -DBUILD_STATIC_LIBS=OFF
-                 -DBUILD_PACKAGING=OFF
-                 -DBUILD_TESTING=OFF
+                 -DBUILD_SHARED_LIBS=OFF
+                 -Dprotobuf_MSVC_STATIC_RUNTIME=OFF
                  -Dprotobuf_BUILD_TESTS=OFF
-                 -DBUILD_NC_TESTS=OFF
                  -BUILD_CONFIG_TESTS=OFF
-                 -DINSTALL_HEADERS=ON
                  -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS}
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS}
       LOG_DOWNLOAD 1
       LOG_INSTALL 1
       )
+
+    set(PROTOBUF_EXTERNAL TRUE)
     set(PROTOBUF_FOUND TRUE)
     set(PROTOBUF_INCLUDE_DIR ${protobuf_INSTALL}/include)
     set(PROTOBUF_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
+    set(PROTOBUF_LIBRARY_DIRS ${protobuf_INSTALL}/lib)
 if(WIN32)
     if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
         set(PROTOBUFNAME libprotobuf.lib)
@@ -58,22 +64,22 @@ if(WIN32)
     set(PROTOBUF_LIBRARIES ${protobuf_INSTALL}/lib/${PROTOBUFNAME} ${CMAKE_THREAD_LIBS_INIT})
     set(PROTOBUF_PROTOC_EXECUTABLE ${protobuf_INSTALL}/bin/protoc.exe)
 else()
-    set(PROTOBUF_LIBRARIES ${protobuf_INSTALL}/lib/libprotobuf.a ${CMAKE_THREAD_LIBS_INIT})
+        set(PROTOBUF_LIBRARIES ${protobuf_INSTALL}/lib/libprotobuf.a ${CMAKE_THREAD_LIBS_INIT})
 endif()
-    set(PROTOBUF_LIBRARY_DIRS ${protobuf_INSTALL}/lib)
-    set(PROTOBUF_EXTERNAL TRUE)
 
     list(APPEND external_project_dependencies protobuf)
   endif()
 
 endif()
 
-# As of Ubuntu 14.04 protoc is no longer a part of libprotobuf-dev package
-# and should be installed separately as in: sudo apt-get install protobuf-compiler
-if(EXISTS ${PROTOBUF_PROTOC_EXECUTABLE})
-  message(STATUS "Found PROTOBUF Compiler: ${PROTOBUF_PROTOC_EXECUTABLE}")
-else()
-  message(FATAL_ERROR "Could not find PROTOBUF Compiler")
+if(NOT WIN32)
+    # As of Ubuntu 14.04 protoc is no longer a part of libprotobuf-dev package
+    # and should be installed separately as in: sudo apt-get install protobuf-compiler
+    if(EXISTS ${PROTOBUF_PROTOC_EXECUTABLE})
+        message(STATUS "Found PROTOBUF Compiler: ${PROTOBUF_PROTOC_EXECUTABLE}")
+    else()
+        message(FATAL_ERROR "Could not find PROTOBUF Compiler")
+    endif()
 endif()
 
 if(PROTOBUF_FOUND)

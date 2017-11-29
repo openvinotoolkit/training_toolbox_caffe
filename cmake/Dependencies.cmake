@@ -4,6 +4,9 @@ set(Caffe_LINKER_LIBS "")
 # ---[ Boost
 find_package(Boost 1.46 REQUIRED COMPONENTS system thread filesystem regex)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+if(WIN32)
+    add_definitions(-DBOOST_ALL_DYN_LINK)
+endif()
 list(APPEND Caffe_LINKER_LIBS ${Boost_LIBRARIES})
 
 # ---[ Threads
