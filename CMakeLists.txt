@@ -1,4 +1,12 @@
 cmake_minimum_required(VERSION 2.8.7)
+if(MSVC)
+  # CMake 3.4 introduced a WINDOWS_EXPORT_ALL_SYMBOLS target property that makes it possible to
+  # build shared libraries without using the usual declspec() decoration.
+  # See: https://blog.kitware.com/create-dlls-on-windows-without-declspec-using-new-cmake-export-all-feature/
+  # and https://cmake.org/cmake/help/v3.5/prop_tgt/WINDOWS_EXPORT_ALL_SYMBOLS.html
+  # for details.
+  cmake_minimum_required(VERSION 3.4)
+endif()
 if(POLICY CMP0022)
   cmake_policy(SET CMP0022 NEW)
 endif()
@@ -27,6 +35,7 @@ include(cmake/Targets.cmake)
 include(cmake/Misc.cmake)
 include(cmake/Summary.cmake)
 include(cmake/ConfigGen.cmake)
+include(cmake/WindowsCreateLinkHeader.cmake)
 
 # ---[ Options
 caffe_option(CPU_ONLY  "Build Caffe without CUDA support" OFF) # TODO: rename to USE_CUDA
@@ -58,7 +67,9 @@ if(USE_libstdcpp)
   message("-- Warning: forcing libstdc++ (controlled by USE_libstdcpp option in cmake)")
 endif()
 
-add_definitions(-DGTEST_USE_OWN_TR1_TUPLE)
+if(NOT WIN32)
+  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE)
+endif()
 
 if (CMAKE_VERSION VERSION_LESS "3.1")
   set(CMAKE_CXX_FLAGS "--std=c++11 ${CMAKE_CXX_FLAGS}")

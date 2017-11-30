@@ -1,5 +1,3 @@
-#include <Python.h>  // NOLINT(build/include_alpha)
-
 // Produce deprecation warnings (needs to come before arrayobject.h inclusion).
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
@@ -39,6 +37,41 @@
   } \
 } while (0)
 
+#if defined(_MSC_VER) && (_MSC_FULL_VER >= 190024210)
+// Workaround for VS 2015 Update 3 which breaks boost python
+// See: http://stackoverflow.com/questions/38261530/unresolved-external-symbols-since-visual-studio-2015-update-3-boost-python-link
+// and https://msdn.microsoft.com/vs-knownissues/vs2015-update3
+#define BP_GET_POINTER(cls) \
+namespace boost { \
+template <> \
+const volatile caffe::cls * \
+get_pointer(const volatile caffe::cls *c) { \
+    return c; \
+} \
+}
+
+#define BP_GET_POINTER_T(cls, dtype) BP_GET_POINTER(cls<dtype>)
+
+// forward declare the NCCL class
+// in case we are not using NCCL
+namespace caffe {
+template <typename Dtype> class NCCL;
+}
+
+BP_GET_POINTER_T(Net, float);
+BP_GET_POINTER_T(Layer, float);
+BP_GET_POINTER_T(Solver, float);
+BP_GET_POINTER_T(SGDSolver, float);
+BP_GET_POINTER_T(NesterovSolver, float);
+BP_GET_POINTER_T(AdaGradSolver, float);
+BP_GET_POINTER_T(RMSPropSolver, float);
+BP_GET_POINTER_T(AdaDeltaSolver, float);
+BP_GET_POINTER_T(AdamSolver, float);
+BP_GET_POINTER_T(NCCL, float);
+BP_GET_POINTER(Timer);
+
+#endif
+
 namespace bp = boost::python;
 
 namespace caffe {
@@ -51,14 +84,21 @@ const int NPY_DTYPE = NPY_FLOAT32;
 void set_mode_cpu() { Caffe::set_mode(Caffe::CPU); }
 void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
 
-void InitLog(int level) {
-  FLAGS_logtostderr = 1;
-  FLAGS_minloglevel = level;
+void InitLog() {
   ::google::InitGoogleLogging("");
+#ifndef _MSC_VER
+  // this symbol is undefined on windows
   ::google::InstallFailureSignalHandler();
+#endif  // _MSC_VER
 }
-void InitLogInfo() {
-  InitLog(google::INFO);
+void InitLogLevel(int level) {
+  FLAGS_minloglevel = level;
+  InitLog();
+}
+void InitLogLevelPipe(int level, bool std_err) {
+  FLAGS_minloglevel = level;
+  FLAGS_logtostderr = std_err;
+  InitLog();
 }
 void Log(const string& s) {
   LOG(INFO) << s;
@@ -349,7 +389,8 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   // Caffe utility functions
   bp::def("init_log", &InitLog);
-  bp::def("init_log", &InitLogInfo);
+  bp::def("init_log", &InitLogLevel);
+  bp::def("init_log", &InitLogLevelPipe);
   bp::def("log", &Log);
   bp::def("set_mode_cpu", &set_mode_cpu);
   bp::def("set_mode_gpu", &set_mode_gpu);
