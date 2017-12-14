@@ -175,9 +175,6 @@ class LabelShufflingLayerPairwise(caffe.Layer):
             labels_left_all += labels_left
             labels_right_all += labels_right
 
-        sum_pair_label_vals = sum([v for one_el_list in pair_label for v in one_el_list])
-        percents_same_label = round(100 * float(sum_pair_label_vals) / len(pair_label))
-        print "The generated batch contains {}% pairs with same labels and {}% pairs with different labels".format(percents_same_label, 100-percents_same_label)
         return imgs_left, imgs_right, pair_label
 
     def convert_to_caffe_layout(self, img):
@@ -200,9 +197,9 @@ class LabelShufflingLayerPairwise(caffe.Layer):
             height = self.data_shape_[0]
 
             min_factor = 0
-            max_factor_left_right = 0.05
-            max_factor_top = 0.05
-            max_factor_bottom = 0.05
+            max_factor_left_right = 0.1
+            max_factor_top = 0.1
+            max_factor_bottom = 0.2
 
             distance_from_edge_left = int(np.random.uniform(min_factor, max_factor_left_right) * width)
             right_edge = int(width * (1 - np.random.uniform(min_factor, max_factor_left_right)))
