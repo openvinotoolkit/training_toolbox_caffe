@@ -87,15 +87,19 @@ class LabelShufflingLayerPairwise(caffe.Layer):
         with env.begin() as txn:
             val = txn.get(k)
         data, label = parseRecord(val)
-        self.data_shape_ = data.shape
+        self.in_shape_ = data.shape
         self.label_shape_ = label.shape
 
         layer_params = yaml.load(self.param_str)
         self.chunk_size_ = layer_params.get('chunk_size', self.batch_size_)
 
+        self.out_shape_ = self.in_shape_
+        if 'out_shape' in layer_params:
+            self.out_shape_ = (layer_params['out_shape'][0], layer_params['out_shape'][1], self.in_shape_[2])
+
     def reshape(self, bottom, top):
-        top[0].reshape(self.batch_size_, self.data_shape_[2], self.data_shape_[0], self.data_shape_[1])
-        top[1].reshape(self.batch_size_, self.data_shape_[2], self.data_shape_[0], self.data_shape_[1])
+        top[0].reshape(self.batch_size_, self.out_shape_[2], self.out_shape_[0], self.out_shape_[1])
+        top[1].reshape(self.batch_size_, self.out_shape_[2], self.out_shape_[0], self.out_shape_[1])
         top[2].reshape(self.batch_size_, self.label_shape_[0])
 
     def getNewLabel(self, labels_in_batch):
@@ -193,8 +197,8 @@ class LabelShufflingLayerPairwise(caffe.Layer):
                     augmented_img[:, :, i] = gaussian_filter(augmented_img[:, :, i], sigma=filter_size)
 
         if self.dither_:
-            width = self.data_shape_[1]
-            height = self.data_shape_[0]
+            width = self.in_shape_[1]
+            height = self.in_shape_[0]
 
             min_factor = 0
             max_factor_left_right = 0.1
@@ -227,6 +231,9 @@ class LabelShufflingLayerPairwise(caffe.Layer):
                 augmented_img = np.where(augmented_img >= 0,
                                          augmented_img,
                                          np.full_like(augmented_img, 0, dtype=np.uint8))
+
+        if augmented_img.shape[0] != self.out_shape_[0] or augmented_img.shape[1] != self.out_shape_[1]:
+            augmented_img = imresize(augmented_img, (self.out_shape_[0], self.out_shape_[1]))
 
         return augmented_img
 
