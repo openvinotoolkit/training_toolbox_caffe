@@ -3,49 +3,32 @@
 #include <utility>
 #include <vector>
 
-#include "caffe/layers/prior_box_layer.hpp"
+#include "caffe/layers/prior_box_clustered_layer.hpp"
 
 namespace caffe {
 
 template <typename Dtype>
-void PriorBoxLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void PriorBoxClusteredLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const PriorBoxParameter& prior_box_param =
       this->layer_param_.prior_box_param();
-  CHECK_GT(prior_box_param.min_size_size(), 0) << "must provide min_size.";
-  for (int i = 0; i < prior_box_param.min_size_size(); ++i) {
-    min_sizes_.push_back(prior_box_param.min_size(i));
-    CHECK_GT(min_sizes_.back(), 0) << "min_size must be positive.";
+
+  CHECK_GT(prior_box_param.width_size(), 0) << "must provide width.";
+  for (int i = 0; i < prior_box_param.width_size(); ++i) {
+    widths_.push_back(prior_box_param.width(i));
+    CHECK_GT(widths_.back(), 0) << "width must be positive.";
   }
-  aspect_ratios_.clear();
-  aspect_ratios_.push_back(1.);
-  flip_ = prior_box_param.flip();
-  for (int i = 0; i < prior_box_param.aspect_ratio_size(); ++i) {
-    float ar = prior_box_param.aspect_ratio(i);
-    bool already_exist = false;
-    for (int j = 0; j < aspect_ratios_.size(); ++j) {
-      if (fabs(ar - aspect_ratios_[j]) < 1e-6) {
-        already_exist = true;
-        break;
-      }
-    }
-    if (!already_exist) {
-      aspect_ratios_.push_back(ar);
-      if (flip_) {
-        aspect_ratios_.push_back(1./ar);
-      }
+
+  if (prior_box_param.height_size() > 0) {
+    CHECK_EQ(prior_box_param.width_size(), prior_box_param.height_size());
+    for (int i = 0; i < prior_box_param.height_size(); ++i) {
+      heights_.push_back(prior_box_param.height(i));
+      CHECK_GT(heights_.back(), 0) << "width must be positive.";
     }
   }
-  num_priors_ = aspect_ratios_.size() * min_sizes_.size();
-  if (prior_box_param.max_size_size() > 0) {
-    CHECK_EQ(prior_box_param.min_size_size(), prior_box_param.max_size_size());
-    for (int i = 0; i < prior_box_param.max_size_size(); ++i) {
-      max_sizes_.push_back(prior_box_param.max_size(i));
-      CHECK_GT(max_sizes_[i], min_sizes_[i])
-          << "max_size must be greater than min_size.";
-      num_priors_ += 1;
-    }
-  }
+
+  num_priors_ = widths_.size();
+
   clip_ = prior_box_param.clip();
   if (prior_box_param.variance_size() > 1) {
     // Must and only provide 4 variance.
@@ -100,7 +83,7 @@ void PriorBoxLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-void PriorBoxLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+void PriorBoxClusteredLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const int layer_width = bottom[0]->width();
   const int layer_height = bottom[0]->height();
@@ -117,7 +100,7 @@ void PriorBoxLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-void PriorBoxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+void PriorBoxClusteredLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   const int layer_width = bottom[0]->width();
   const int layer_height = bottom[0]->height();
@@ -140,15 +123,16 @@ void PriorBoxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* top_data = top[0]->mutable_cpu_data();
   int dim = layer_height * layer_width * num_priors_ * 4;
   int idx = 0;
+
   for (int h = 0; h < layer_height; ++h) {
     for (int w = 0; w < layer_width; ++w) {
       float center_x = (w + offset_) * step_w;
       float center_y = (h + offset_) * step_h;
       float box_width, box_height;
-      for (int s = 0; s < min_sizes_.size(); ++s) {
-        float min_size_ = min_sizes_[s];
-        // first prior: aspect_ratio = 1, size = min_size
-        box_width = box_height = min_size_;
+
+      for (int s = 0; s < num_priors_; ++s) {
+        box_width = widths_[s];
+        box_height = heights_[s];
         // xmin
         top_data[idx++] = (center_x - box_width / 2.) / img_width;
         // ymin
@@ -157,39 +141,6 @@ void PriorBoxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         top_data[idx++] = (center_x + box_width / 2.) / img_width;
         // ymax
         top_data[idx++] = (center_y + box_height / 2.) / img_height;
-
-        if (max_sizes_.size() > 0) {
-          CHECK_EQ(min_sizes_.size(), max_sizes_.size());
-          float max_size_ = max_sizes_[s];
-          // second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
-          box_width = box_height = sqrt(min_size_ * max_size_);
-          // xmin
-          top_data[idx++] = (center_x - box_width / 2.) / img_width;
-          // ymin
-          top_data[idx++] = (center_y - box_height / 2.) / img_height;
-          // xmax
-          top_data[idx++] = (center_x + box_width / 2.) / img_width;
-          // ymax
-          top_data[idx++] = (center_y + box_height / 2.) / img_height;
-        }
-
-        // rest of priors
-        for (int r = 0; r < aspect_ratios_.size(); ++r) {
-          float ar = aspect_ratios_[r];
-          if (fabs(ar - 1.) < 1e-6) {
-            continue;
-          }
-          box_width = min_size_ * sqrt(ar);
-          box_height = min_size_ / sqrt(ar);
-          // xmin
-          top_data[idx++] = (center_x - box_width / 2.) / img_width;
-          // ymin
-          top_data[idx++] = (center_y - box_height / 2.) / img_height;
-          // xmax
-          top_data[idx++] = (center_x + box_width / 2.) / img_width;
-          // ymax
-          top_data[idx++] = (center_y + box_height / 2.) / img_height;
-        }
       }
     }
   }
@@ -218,7 +169,7 @@ void PriorBoxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   }
 }
 
-INSTANTIATE_CLASS(PriorBoxLayer);
-REGISTER_LAYER_CLASS(PriorBox);
+INSTANTIATE_CLASS(PriorBoxClusteredLayer);
+REGISTER_LAYER_CLASS(PriorBoxClustered);
 
 }  // namespace caffe

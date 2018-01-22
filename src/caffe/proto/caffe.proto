@@ -397,7 +397,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 214 (last added: grn_param)
+// LayerParameter next available layer-specific ID: 216 (last added: reorg_yolo_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -518,8 +518,22 @@ message LayerParameter {
   optional BoxAnnotatorOHEMParameter box_annotator_ohem_param = 210;
   optional DetectionOutputParameter detection_output_param = 211;
   optional PriorBoxParameter prior_box_param = 212;
+
+  optional RegionYoloParameter region_yolo_param = 214;
+  optional ReorgYoloParameter reorg_yolo_param = 215;
+  optional ReLU6Parameter relu6_param = 216;
+
+  optional InterpParameter interp_param = 217;
 }
 
+message InterpParameter {
+  optional int32 height = 1 [default = 0]; // Height of output
+  optional int32 width = 2 [default = 0]; // Width of output
+  optional int32 zoom_factor = 3 [default = 1]; // zoom factor
+  optional int32 shrink_factor = 4 [default = 1]; // shrink factor
+  optional int32 pad_beg = 5 [default = 0]; // padding at begin of input
+  optional int32 pad_end = 6 [default = 0]; // padding at end of input
+}
 
 message RandomSamplingSoftmaxLossParameter {
   optional int32 random_sampling_num = 1 [default = 100];
@@ -998,6 +1012,12 @@ message DetectionOutputParameter {
   optional float visualize_threshold = 11;
   // If provided, save outputs to video file.
   optional string save_file = 12;
+  // Input width
+  optional int32 input_width = 13 [default = -1];
+  // Input height
+  optional int32 input_height = 14 [default = -1];
+  // If false, bboxes need to be normalized
+  optional bool normalized = 15 [default = true];
 }
 
 message DropoutParameter {
@@ -1253,6 +1273,7 @@ message PoolingParameter {
   // If global_pooling then it will pool over the size of the bottom by doing
   // kernel_h = bottom->height and kernel_w = bottom->width
   optional bool global_pooling = 12 [default = false];
+  optional bool ceil_mode = 13 [default = true];
 }
 
 message PowerParameter {
@@ -1302,6 +1323,11 @@ message PriorBoxParameter {
 
   // Offset to the top left corner of each cell.
   optional float offset = 13 [default = 0.5];
+
+  // width (in pixels).
+  repeated float width = 14;
+  // height (in pixels).
+  repeated float height = 15;
 }
 
 message PSROIPoolingParameter {
@@ -1386,6 +1412,12 @@ message ReLUParameter {
     CUDNN = 2;
   }
   optional Engine engine = 2 [default = DEFAULT];
+}
+
+message ReLU6Parameter {
+  // Allows to limit ReLU activation from the top and clip by specified value
+  //
+  optional float n = 1 [default = 6];
 }
 
 message ReshapeParameter {
@@ -1843,4 +1875,14 @@ message PReLUParameter {
   optional FillerParameter filler = 1;
   // Whether or not slope parameters are shared across channels.
   optional bool channel_shared = 2 [default = false];
+}
+
+message RegionYoloParameter {
+  optional int32 coords = 1 [default = 4];
+  optional int32 classes = 2 [default = 20];
+  optional int32 num = 3 [default = 1];
+}
+
+message ReorgYoloParameter {
+  optional int32 stride = 1 [default = 1];
 }

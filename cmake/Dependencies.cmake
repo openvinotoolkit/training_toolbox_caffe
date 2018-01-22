@@ -4,6 +4,9 @@ set(Caffe_LINKER_LIBS "")
 # ---[ Boost
 find_package(Boost 1.46 REQUIRED COMPONENTS system thread filesystem regex)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+if(WIN32)
+    add_definitions(-DBOOST_ALL_DYN_LINK)
+endif()
 list(APPEND Caffe_LINKER_LIBS ${Boost_LIBRARIES})
 
 # ---[ Threads
@@ -23,6 +26,10 @@ endif()
 # ---[ Google-glog
 include("cmake/External/glog.cmake")
 include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
+    if(WIN32)
+        add_definitions("-DGLOG_NO_ABBREVIATED_SEVERITIES")
+        add_definitions("-DGOOGLE_GLOG_DLL_DECL=")
+    endif()
 list(APPEND Caffe_LINKER_LIBS ${GLOG_LIBRARIES})
 
 # ---[ Google-gflags
@@ -31,7 +38,13 @@ include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
 list(APPEND Caffe_LINKER_LIBS ${GFLAGS_LIBRARIES})
 
 # ---[ Google-protobuf
-include(cmake/ProtoBuf.cmake)
+if(NOT WIN32)
+    include(cmake/ProtoBuf.cmake)
+else()
+    include("cmake/External/ProtoBuf.cmake")
+    include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIRS})
+    list(APPEND Caffe_LINKER_LIBS ${PROTOBUF_LIBRARIES})
+endif()
 
 # ---[ HDF5
 find_package(HDF5 COMPONENTS HL REQUIRED)
@@ -114,6 +127,10 @@ if(NOT APPLE)
     include_directories(SYSTEM ${MKL_INCLUDE_DIR})
     list(APPEND Caffe_LINKER_LIBS ${MKL_LIBRARIES})
     add_definitions(-DUSE_MKL)
+    # If MKL and OpenMP is to be used then use Intel OpenMP
+    if(OPENMP_FOUND)
+      list(APPEND Caffe_LINKER_LIBS -Wl,--no-as-needed iomp5)
+    endif()
   elseif(BLAS STREQUAL "AdhocMKL" OR BLAS STREQUAL "adhocmkl")
     set(MKL_EXTERNAL "0")
     #--find mkl in external/mkl
@@ -154,7 +171,7 @@ if(NOT APPLE)
     add_definitions(-DUSE_MKL)
     # If MKL and OpenMP is to be used then use Intel OpenMP
     if(OPENMP_FOUND)
-      list(APPEND Caffe_LINKER_LIBS -Wl,--as-needed iomp5)
+      list(APPEND Caffe_LINKER_LIBS -Wl,--no-as-needed iomp5)
     endif()
   endif()
 elseif(APPLE)
@@ -196,7 +213,8 @@ if(BUILD_python)
       endif()
     endwhile()
     if(NOT Boost_PYTHON_FOUND)
-      find_package(Boost 1.46 COMPONENTS python)
+      find_package(Boost 1.46 COMPONENTS python${boost_py_version})
+      set(Boost_PYTHON_FOUND python${boost_py_version}_FOUND)
     endif()
   else()
     # disable Python 3 search

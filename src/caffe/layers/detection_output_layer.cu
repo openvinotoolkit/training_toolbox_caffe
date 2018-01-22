@@ -152,25 +152,23 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
       }
       for (int j = 0; j < indices.size(); ++j) {
         int idx = indices[j];
-        /*top_data[count * 7] = i;
+        top_data[count * 7] = i;
         top_data[count * 7 + 1] = label;
         top_data[count * 7 + 2] = cur_conf_data[idx];
-        printf("idx %u\n", count * 7 + 2);
-        printf("idx %u\n", count * 7 + 3 + 3);
         for (int k = 0; k < 4; ++k) {
           top_data[count * 7 + 3 + k] = cur_bbox_data[idx * 4 + k];
-        }*/
+        }
         if (need_save_) {
           // Generate output bbox.
           NormalizedBBox bbox;
-          bbox.set_xmin(cur_bbox_data[idx * 4 + 0]);//(top_data[count * 7 + 3]);
-          bbox.set_ymin(cur_bbox_data[idx * 4 + 1]);//(top_data[count * 7 + 4]);
-          bbox.set_xmax(cur_bbox_data[idx * 4 + 2]);//(top_data[count * 7 + 5]);
-          bbox.set_ymax(cur_bbox_data[idx * 4 + 3]);//(top_data[count * 7 + 6]);
+          bbox.set_xmin(top_data[count * 7 + 3]);
+          bbox.set_ymin(top_data[count * 7 + 4]);
+          bbox.set_xmax(top_data[count * 7 + 5]);
+          bbox.set_ymax(top_data[count * 7 + 6]);
           NormalizedBBox out_bbox;
           OutputBBox(bbox, sizes_[name_count_], has_resize_, resize_param_,
                      &out_bbox);
-          float score = cur_conf_data[idx]; //top_data[count * 7 + 2];
+          float score = top_data[count * 7 + 2];
           float xmin = out_bbox.xmin();
           float ymin = out_bbox.ymin();
           float xmax = out_bbox.xmax();
@@ -204,7 +202,6 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
     }
     if (need_save_) {
       ++name_count_;
-      printf(" %u", name_count_);
       if (name_count_ % num_test_image_ == 0) {
         if (output_format_ == "VOC") {
           map<string, std::ofstream*> outfiles;
@@ -248,22 +245,48 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
             outfiles[label_name]->close();
             delete outfiles[label_name];
           }
-        } else if (output_format_ == "COCO" || output_format_ == "ILSVRC") {
-          printf("was removed\n");
+        } else if (output_format_ == "COCO") {
+          boost::filesystem::path output_directory(output_directory_);
+          boost::filesystem::path file(output_name_prefix_ + ".json");
+          boost::filesystem::path out_file = output_directory / file;
+          std::ofstream outfile;
+          outfile.open(out_file.string().c_str(), std::ofstream::out);
+
+          boost::regex exp("\"(null|true|false|-?[0-9]+(\\.[0-9]+)?)\"");
+          ptree output;
+          output.add_child("detections", detections_);
+          std::stringstream ss;
+          write_json(ss, output);
+          std::string rv = boost::regex_replace(ss.str(), exp, "$1");
+          outfile << rv.substr(rv.find("["), rv.rfind("]") - rv.find("["))
+              << std::endl << "]" << std::endl;
+        } else if (output_format_ == "ILSVRC") {
+          boost::filesystem::path output_directory(output_directory_);
+          boost::filesystem::path file(output_name_prefix_ + ".txt");
+          boost::filesystem::path out_file = output_directory / file;
+          std::ofstream outfile;
+          outfile.open(out_file.string().c_str(), std::ofstream::out);
+
+          BOOST_FOREACH(ptree::value_type &det, detections_.get_child("")) {
+            ptree pt = det.second;
+            int label = pt.get<int>("category_id");
+            string image_name = pt.get<string>("image_id");
+            float score = pt.get<float>("score");
+            vector<int> bbox;
+            BOOST_FOREACH(ptree::value_type &elem, pt.get_child("bbox")) {
+              bbox.push_back(static_cast<int>(elem.second.get_value<float>()));
+            }
+            outfile << image_name << " " << label << " " << score;
+            outfile << " " << bbox[0] << " " << bbox[1];
+            outfile << " " << bbox[0] + bbox[2];
+            outfile << " " << bbox[1] + bbox[3];
+            outfile << std::endl;
+          }
         }
         name_count_ = 0;
         detections_.clear();
       }
     }
-  }
-  if (visualize_) {
-#ifdef USE_OPENCV
-    //vector<cv::Mat> cv_imgs;
-    //this->data_transformer_->TransformInv(bottom[3], &cv_imgs);
-    //vector<cv::Scalar> colors = GetColors(label_to_display_name_.size());
-    //VisualizeBBox(cv_imgs, top[0], visualize_threshold_, colors,
-    //    label_to_display_name_, save_file_);
-#endif  // USE_OPENCV
   }
 }
 

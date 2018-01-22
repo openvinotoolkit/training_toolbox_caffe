@@ -66,7 +66,7 @@ class DetectionOutputLayer : public Layer<Dtype> {
   /// @brief Not implemented
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-    NOT_IMPLEMENTED;
+    //NOT_IMPLEMENTED;
   }
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
@@ -88,6 +88,12 @@ class DetectionOutputLayer : public Layer<Dtype> {
   float nms_threshold_;
   int top_k_;
   float eta_;
+
+  int input_width;
+  int input_height;
+  int prior_size;
+  bool normalized;
+  int offset;
 
   bool need_save_;
   string output_directory_;

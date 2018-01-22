@@ -1,37 +1,43 @@
-# Caffe
+This is a [BVLC Caffe](https://github.com/BVLC/caffe) fork that is intended for deployment of models that are benchmarked and/or developed inside ICV. That means that checking out master branch of the project should be enough to run any Caffe model that is mentioned in ICV benchmark report and/or delivered by ICV as a part of some capability.
 
-[![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
-[![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
+Windows x64 build (tested with MSVC 2015)
+1. install Boost 1.65.1, precompiled msvc 14.0 x64 install package can be downloaded by [the link below](https://sourceforge.net/projects/boost/files/boost-binaries/1.65.1/boost_1_65_1-msvc-14.0-64.exe/download)
+2. install HDF5 1.8.19, install package can be downloaded by [the link below](https://support.hdfgroup.org/ftp/HDF5/current18/bin/windows/hdf5-1.8.19-Std-win7_64-vs2015.zip)
+3. install Intel Computer Vision SDK 1.0 R3 (needed for OpenCV availability)
+4. install Python if python layer needed. Tested with Anaconda 5.0.1 Python 2.7,
+   install package can be downloaded by [the link below](https://repo.continuum.io/archive/Anaconda2-5.0.1-Windows-x86_64.exe)
+   To successfully build the python interface you need to add the following conda channels:
+     ```
+     conda config --add channels conda-forge
+     conda config --add channels willyd
+     ```
+     and install the following packages:
+     ```
+     conda install --yes cmake ninja numpy scipy protobuf==3.1.0 six scikit-image pyyaml pydotplus graphviz
+     ```
+   If Python is installed the default is to build the python interface and python layers.
+   If you wish to disable the python layers or the python build use the CMake options `-DBUILD_python_layer=0` and
+   `-DBUILD_python=0` respectively. In order to use the python interface you need to either add the
+   `C:\Projects\caffe\python` folder to your python path of copy the `C:\Projects\caffe\python\caffe` folder to your
+   `site_packages` folder.
+5. Configuration and build caffe on Windows tested with the following CMake options:
+   `-DOpenCV_DIR=<path to opencv within Intel CV SDK>`
+   `-DHDF5_DIR=<path to installation folder of HDF5 package>`
+   `-DPYTHON_EXECUTABLE=<full path name of python.exe within Anaconda2 installation folder>`
+   `-DCPU_ONLY=ON`
+   `-DBLAS=MKL`
+   `-DUSE_CUDNN=OFF`
+   `-DUSE_NCCL=OFF`
+   `-DUSE_OPENCV=ON`
+   `-DUSE_LEVELDB=OFF`
+   `-DUSE_LMDB=OFF`
+   `-DBUILD_python=ON`
+   `-DBUILD_python_layer=ON`
+   `-DBUILD_matlab=OFF`
+   `-DBUILD_docs=OFF`
+6. Note, you will need to add path to GFlags DLL, found at `<BUILD_FOLDER>/external/gflags-install/bin` folder in order
+   to run application linked with caffe.dll
 
-Caffe is a deep learning framework made with expression, speed, and modularity in mind.
-It is developed by the Berkeley Vision and Learning Center ([BVLC](http://bvlc.eecs.berkeley.edu)) and community contributors.
+Please find original readme file [here](README_BVLC.md).
 
-Check out the [project site](http://caffe.berkeleyvision.org) for all the details like
-
-- [DIY Deep Learning for Vision with Caffe](https://docs.google.com/presentation/d/1UeKXVgRvvxg9OUdh_UiC5G71UMscNPlvArsWER41PsU/edit#slide=id.p)
-- [Tutorial Documentation](http://caffe.berkeleyvision.org/tutorial/)
-- [BVLC reference models](http://caffe.berkeleyvision.org/model_zoo.html) and the [community model zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo)
-- [Installation instructions](http://caffe.berkeleyvision.org/installation.html)
-
-and step-by-step examples.
-
-[![Join the chat at https://gitter.im/BVLC/caffe](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/BVLC/caffe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-Please join the [caffe-users group](https://groups.google.com/forum/#!forum/caffe-users) or [gitter chat](https://gitter.im/BVLC/caffe) to ask questions and talk about methods and models.
-Framework development discussions and thorough bug reports are collected on [Issues](https://github.com/BVLC/caffe/issues).
-
-Happy brewing!
-
-## License and Citation
-
-Caffe is released under the [BSD 2-Clause license](https://github.com/BVLC/caffe/blob/master/LICENSE).
-The BVLC reference models are released for unrestricted use.
-
-Please cite Caffe in your publications if it helps your research:
-
-    @article{jia2014caffe,
-      Author = {Jia, Yangqing and Shelhamer, Evan and Donahue, Jeff and Karayev, Sergey and Long, Jonathan and Girshick, Ross and Guadarrama, Sergio and Darrell, Trevor},
-      Journal = {arXiv preprint arXiv:1408.5093},
-      Title = {Caffe: Convolutional Architecture for Fast Feature Embedding},
-      Year = {2014}
-    }
+If you want to make a contribution please follow [the guideline](CONTRIBUTING.md).

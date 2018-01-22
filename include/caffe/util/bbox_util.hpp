@@ -104,7 +104,8 @@ void DecodeBBoxesAll(const vector<LabelBBox>& all_loc_pred,
 template <typename Dtype>
 void GetLocPredictions(const Dtype* loc_data, const int num,
       const int num_preds_per_class, const int num_loc_classes,
-      const bool share_location, vector<LabelBBox>* loc_preds);
+      const bool share_location, vector<LabelBBox>* loc_preds,
+      bool normalized, int width, int height);
 
 // Get confidence predictions from conf_data.
 //    conf_data: num x num_preds_per_class * num_classes blob.
@@ -141,7 +142,8 @@ void GetConfidenceScores(const Dtype* conf_data, const int num,
 template <typename Dtype>
 void GetPriorBBoxes(const Dtype* prior_data, const int num_priors,
       vector<NormalizedBBox>* prior_bboxes,
-      vector<vector<float> >* prior_variances);
+      vector<vector<float> >* prior_variances, bool variance_encoded_in_target,
+      bool normalized, int width, int height, int prior_size, int offset);
 
 #ifndef CPU_ONLY  // GPU
 
