@@ -397,7 +397,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 216 (last added: reorg_yolo_param)
+// LayerParameter next available layer-specific ID: 219 (last added: label_specific_add_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -524,6 +524,8 @@ message LayerParameter {
   optional ReLU6Parameter relu6_param = 216;
 
   optional InterpParameter interp_param = 217;
+
+  optional LabelSpecificAddParameter label_specific_add_param = 218;
 }
 
 message InterpParameter {
@@ -1180,6 +1182,7 @@ message InnerProductParameter {
   // of the weight matrix. The weight matrix itself is not going to be transposed
   // but rather the transfer flag of operations will be toggled accordingly.
   optional bool transpose = 6 [default = false];
+  optional bool normalize = 7 [default = false];
 }
 
 message InputParameter {
@@ -1885,4 +1888,9 @@ message RegionYoloParameter {
 
 message ReorgYoloParameter {
   optional int32 stride = 1 [default = 1];
+}
+
+message LabelSpecificAddParameter {
+  optional float bias = 1 [default = 0.0];
+  optional bool transform_test = 2 [default = false];
 }
