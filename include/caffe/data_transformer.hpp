@@ -2,6 +2,7 @@
 #define CAFFE_DATA_TRANSFORMER_HPP
 
 #include <vector>
+#include <random>
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
@@ -62,7 +63,7 @@ class DataTransformer {
    *    set_cpu_data() is used. See memory_layer.cpp for an example.
    */
   void Transform(const vector<cv::Mat> & mat_vector,
-                Blob<Dtype>* transformed_blob);
+                Blob<Dtype>* transformed_blob, bool transpose = true);
 
   /**
    * @brief Applies the transformation defined in the data layer's
@@ -74,7 +75,7 @@ class DataTransformer {
    *    This is destination blob. It can be part of top blob's data if
    *    set_cpu_data() is used. See image_data_layer.cpp for an example.
    */
-  void Transform(const cv::Mat& cv_img, Blob<Dtype>* transformed_blob);
+  void Transform(const cv::Mat& cv_img, Blob<Dtype>* transformed_blob, bool transpose = false);
 #endif  // USE_OPENCV
 
   /**
@@ -144,6 +145,7 @@ class DataTransformer {
 
 
   shared_ptr<Caffe::RNG> rng_;
+  std::mt19937 prnd_;//caffe's RNG is difficult to use.
   Phase phase_;
   Blob<Dtype> data_mean_;
   vector<Dtype> mean_values_;
