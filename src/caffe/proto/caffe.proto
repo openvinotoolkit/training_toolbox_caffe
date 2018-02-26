@@ -397,7 +397,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 220 (last added: general_triplet_loss_param)
+// LayerParameter next available layer-specific ID: 221 (last added: eliminate_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -527,6 +527,7 @@ message LayerParameter {
 
   optional LabelSpecificAddParameter label_specific_add_param = 218;
   optional GeneralTripletParameter general_triplet_loss_param = 219;
+  optional EliminateParameter eliminate_param = 220;
 }
 
 message InterpParameter {
@@ -1913,4 +1914,8 @@ message GeneralTripletParameter {
   optional float positive_upper_bound = 5 [default = 1.0];
   optional float positive_weight = 6 [default = 1.0];
   optional float negative_weight = 7 [default = 1.0];
+}
+
+message EliminateParameter {
+  optional float off_value = 1 [default = -1.0];
 }
