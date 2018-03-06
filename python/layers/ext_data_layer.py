@@ -1,92 +1,47 @@
 import numpy as np
 import cv2
-import lmdb
 import yaml
 import caffe
 from scipy.ndimage.filters import gaussian_filter
-from random import shuffle, choice
+from collections import namedtuple
 
 
-class SampleDataFromLmdb(object):
-    def __init__(self, lmdb_path):
-        self._sample_table = {}
-
-        self._cursor = lmdb.open(lmdb_path, readonly=True).begin().cursor()
-        self._datum = caffe.proto.caffe_pb2.Datum()
-
-        count = 0
-        for (index, (key, value)) in enumerate(self._cursor):
-            self._datum.ParseFromString(value)
-            label = self._datum.label
-
-            if label not in self._sample_table.keys():
-                self._sample_table[label] = []
-
-            self._sample_table[label].append([key, 0])
-            self._sample_table[label].append([key, 1])
-
-            count += 1
-
-        print 'Number of classes:', len(self._sample_table)
-        print 'Number of training images:', count
-
-    def get_image(self, key):
-        value = self._cursor.get(key)
-        self._datum.ParseFromString(value)
-        label = self._datum.label
-
-        img = caffe.io.datum_to_array(self._datum)
-
-        channel_swap = (1, 2, 0)
-        img = img.transpose(channel_swap)
-
-        return img, label
-
-    def get_ids(self):
-        return self._sample_table.keys()
-
-    def get_data(self, key):
-        return self._sample_table.get(key, [])
+SampleDesc = namedtuple('SampleDesc', 'path label')
 
 
-class SampleDataFromDisk(object):
+class SampleDataFromDisk:
     def __init__(self, folders_path):
-        self._sample_table = {}
-        self._sample_label = {}
+        self._all_samples = {}
+        self._ids_by_label = {}
 
-        count = 0
         with open(folders_path) as f:
-            for line in f.readlines():
+            for i, line in enumerate(f.readlines()):
                 line = line.strip()
                 arr = line.split()
 
-                p = arr[0]
+                image_path = arr[0]
                 label = int(arr[1])
 
-                if label not in self._sample_table.keys():
-                    self._sample_table[label] = []
+                self._all_samples[i] = SampleDesc(path=image_path, label=label)
+                self._ids_by_label[label] = self._ids_by_label.get(label, []) + [i]
 
-                self._sample_table[label].append([p, 0])
-                self._sample_table[label].append([p, 1])
+        print('Number of classes: {}'.format(len(self._ids_by_label)))
+        print('Number of training images: {}'.format(len(self._all_samples)))
 
-                self._sample_label[p] = label
+    def get_image(self, sample_id):
+        sample_desc = self._all_samples[sample_id]
+        image = cv2.imread(sample_desc.path)
 
-                count += 1
+        return image, sample_desc.label
 
-        print 'Number of classes:', len(self._sample_table)
-        print 'Number of training images:', count, len(self._sample_label)
+    def get_all_ids(self):
+        return self._all_samples.keys()
 
-    def get_image(self, path):
-        img = cv2.imread(path, 1)
-        label = self._sample_label[path]
+    def get_ids_by_labels(self, label):
+        return self._ids_by_label.get(label, [])
 
-        return img, label
-
-    def get_ids(self):
-        return self._sample_table.keys()
-
-    def get_data(self, key):
-        return self._sample_table.get(key, [])
+    def get_all_labels(self):
+        return self._ids_by_label.keys()
 
 
 class ExtDataLayer(caffe.Layer):
@@ -106,32 +61,38 @@ class ExtDataLayer(caffe.Layer):
         return blob
 
     def _shuffle_data(self):
-        all_ids = self.data_sampler_.get_ids()
-        shuffle(all_ids)
+        if self.num_images_ == 1:
+            self.data_ids_ = self.data_sampler_.get_all_ids()
+            np.random.shuffle(self.data_ids_)
+        else:
+            all_labels = np.copy(self.data_sampler_.get_all_labels())
+            np.random.shuffle(all_labels)
 
-        self.data_ = []
-        for object_id in all_ids:
-            object_paths = self.data_sampler_.get_data(object_id)
-            if len(object_paths) <= 0:
-                continue
+            self.data_ids_ = []
+            for label in all_labels:
+                label_ids = self.data_sampler_.get_ids_by_labels(label)
+                if len(label_ids) <= 0:
+                    continue
 
-            for _ in xrange(self.num_images_):
-                self.data_.append(choice(object_paths))
+                self.data_ids_.append(np.random.choice(label_ids, self.num_images_, replace=True))
+
+            self.data_ids_ = np.array(self.data_ids_).reshape([-1])
 
     def _augment(self, img):
         augmented_img = img
 
         if self.dither_:
-            width = float(augmented_img.shape[1])
-            height = float(augmented_img.shape[0])
+            if np.random.randint(0, 2) == 1:
+                width = augmented_img.shape[1]
+                height = augmented_img.shape[0]
 
-            left_edge = int(width * np.random.uniform(0.0, self.max_factor_left_))
-            right_edge = int(width * (1.0 - np.random.uniform(0.0, self.max_factor_right_)))
-            top_edge = int(height * np.random.uniform(0.0, self.max_factor_top_))
-            bottom_edge = int(height * (1.0 - np.random.uniform(0.0, self.max_factor_bottom_)))
+                left_edge = int(width * np.random.uniform(0.0, self.max_factor_left_))
+                right_edge = int(width * (1.0 - np.random.uniform(0.0, self.max_factor_right_)))
+                top_edge = int(height * np.random.uniform(0.0, self.max_factor_top_))
+                bottom_edge = int(height * (1.0 - np.random.uniform(0.0, self.max_factor_bottom_)))
 
-            crop = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
-            augmented_img = cv2.resize(crop, (width, height))
+                crop = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
+                augmented_img = cv2.resize(crop, (width, height))
 
         if self.blur_:
             if np.random.randint(0, 2) == 1:
@@ -145,7 +106,7 @@ class ExtDataLayer(caffe.Layer):
             if np.random.randint(0, 2) == 1:
                 augmented_img = augmented_img[:, ::-1, :]
 
-        if self.change_brightness_:
+        if self.brightness_:
             rand = np.random.randint(0, 2)
             if rand == 1:
                 if np.average(augmented_img) > self.min_pos_:
@@ -169,35 +130,34 @@ class ExtDataLayer(caffe.Layer):
                 width = augmented_img.shape[1]
                 height = augmented_img.shape[0]
 
-                max_erase_width = np.minimum(int(self.erase_max_size_ * width), width - 1)
-                max_erase_height = np.minimum(int(self.erase_max_size_ * height), height - 1)
+                num_erase_iter = np.random.randint(self.erase_num_[0], self.erase_num_[1])
+                for _ in xrange(num_erase_iter):
+                    erase_width = int(np.random.uniform(self.erase_size_[0], self.erase_size_[1]) * width)
+                    erase_height = int(np.random.uniform(self.erase_size_[0], self.erase_size_[1]) * height)
 
-                left_edge = int(np.random.uniform(self.erase_border_[0], self.erase_border_[1]) * width)
-                top_edge = int(np.random.uniform(self.erase_border_[0], self.erase_border_[1]) * height)
-                right_edge = np.random.randint(left_edge, max_erase_width)
-                bottom_edge = np.random.randint(top_edge, max_erase_height)
+                    left_edge = int(np.random.uniform(self.erase_border_[0], self.erase_border_[1]) * width)
+                    top_edge = int(np.random.uniform(self.erase_border_[0], self.erase_border_[1]) * height)
+                    right_edge = np.minimum(np.random.randint(left_edge, left_edge + erase_width), width)
+                    bottom_edge = np.minimum(np.random.randint(top_edge, top_edge + erase_height), height)
 
-                fill_color = np.random.randint(0, 255, size=3, dtype=np.uint8)
-                augmented_img[top_edge:bottom_edge, left_edge:right_edge] = fill_color
+                    fill_color = np.random.randint(0, 255, size=3, dtype=np.uint8)
+                    augmented_img[top_edge:bottom_edge, left_edge:right_edge] = fill_color
 
         return augmented_img.astype(np.uint8)
 
     def _sample_next_batch(self):
-        if self._index + self._batch_size > len(self._sample):
+        if self._index + self.batch_size_ > len(self.data_ids_):
             self._shuffle_data()
             self._index = 0
 
-        sample = self._sample[self._index:(self._index + self._batch_size)]
-        self._index += self._batch_size
+        sample_ids = self.data_ids_[self._index:(self._index + self.batch_size_)]
+        self._index += self.batch_size_
 
         images_blob = []
         labels_blob = []
 
-        for i in xrange(self._batch_size):
-            image, label = self.data_sampler_.get_image(sample[i])
-
-            if image is None:
-                continue
+        for i in xrange(self.batch_size_):
+            image, label = self.data_sampler_.get_image(sample_ids[i])
 
             augmented_image = self._augment(image)
 
@@ -262,9 +222,11 @@ class ExtDataLayer(caffe.Layer):
 
         self.erase_ = layer_params['erase'] if 'erase' in layer_params else False
         if self.erase_:
-            self.erase_max_size_ = layer_params['erase_max_size'] if 'erase_max_size' in layer_params else 0.1
-            self.erase_border_ = layer_params['erase_max_size'] if 'erase_max_size' in layer_params else [0.05, 0.95]
-            assert 0.0 < self.erase_max_size_ < 1.0
+            self.erase_num_ = layer_params['erase_num'] if 'erase_num' in layer_params else [1, 6]
+            self.erase_size_ = layer_params['erase_size'] if 'erase_size' in layer_params else [0.2, 0.4]
+            self.erase_border_ = layer_params['erase_border'] if 'erase_border' in layer_params else [0.1, 0.9]
+            assert 0 < self.erase_num_[0] < self.erase_num_[1]
+            assert 0.0 < self.erase_size_[0] < self.erase_size_[1] < 1.0
             assert 0.0 < self.erase_border_[0] < self.erase_border_[1] < 1.0
 
         self.mirror_ = layer_params['mirror'] if 'mirror' in layer_params else False
@@ -296,5 +258,5 @@ class ExtDataLayer(caffe.Layer):
         pass
 
     def reshape(self, bottom, top):
-        top[0].reshape(self._batch_size, 3, self._trg_height, self._trg_width)
-        top[1].reshape(self._batch_size)
+        top[0].reshape(self.batch_size_, 3, self.height_, self.width_)
+        top[1].reshape(self.batch_size_)
