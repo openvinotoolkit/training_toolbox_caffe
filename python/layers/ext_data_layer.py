@@ -106,6 +106,18 @@ class ExtDataLayer(caffe.Layer):
             if np.random.randint(0, 2) == 1:
                 augmented_img = augmented_img[:, ::-1, :]
 
+        if self.gamma_:
+            rand = np.random.randint(0, 2)
+            if rand == 1:
+                u = np.random.uniform(-self.delta_, self.delta)
+                gamma = np.log(0.5 + (2 ** (-0.5)) * u) / np.log(0.5 - (2 ** (-0.5)) * u)
+
+                float_image = augmented_img.astype(np.float32) * (1. / 255.)
+                augmented_img = (np.power(float_image, gamma) * 255.0).astype(np.int32)
+                augmented_img[augmented_img > 255] = 255
+                augmented_img[augmented_img < 0] = 0
+                augmented_img = augmented_img.astype(np.uint8)
+
         if self.brightness_:
             rand = np.random.randint(0, 2)
             if rand == 1:
@@ -116,14 +128,10 @@ class ExtDataLayer(caffe.Layer):
                     alpha = np.random.uniform(self.neg_alpha_[0], self.neg_alpha_[1])
                     beta = np.random.randint(self.neg_beta_[0], self.neg_beta_[1])
 
-                changed_brightness = augmented_img * alpha + beta
-
-                augmented_img = np.where(changed_brightness < 255,
-                                         changed_brightness,
-                                         np.full_like(augmented_img, 255, dtype=np.uint8))
-                augmented_img = np.where(augmented_img >= 0,
-                                         augmented_img,
-                                         np.full_like(augmented_img, 0, dtype=np.uint8))
+                augmented_img = (augmented_img.astype(np.float32) * alpha + beta).astype(np.int32)
+                augmented_img[augmented_img > 255] = 255
+                augmented_img[augmented_img < 0] = 0
+                augmented_img = augmented_img.astype(np.uint8)
 
         if self.erase_:
             if np.random.randint(0, 2) == 1:
@@ -198,6 +206,11 @@ class ExtDataLayer(caffe.Layer):
         if self.blur_:
             self.sigma_limits_ = layer_params['sigma_limits'] if 'sigma_limits' in layer_params else [0.0, 0.5]
             assert 0.0 <= self.sigma_limits_[0] < self.sigma_limits_[1]
+
+        self.gamma_ = layer_params['gamma'] if 'gamma' in layer_params else False
+        if self.gamma_:
+            self.delta_ = layer_params['delta'] if 'delta' in layer_params else 0.01
+            assert 0.0 < self.delta_ < 1.0
 
         self.brightness_ = layer_params['brightness'] if 'brightness' in layer_params else False
         if self.brightness_:
