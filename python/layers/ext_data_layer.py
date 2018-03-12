@@ -78,21 +78,39 @@ class ExtDataLayer(caffe.Layer):
 
             self.data_ids_ = np.array(self.data_ids_).reshape([-1])
 
-    def _augment(self, img):
+    def _augment(self, img, trg_height, trg_width):
         augmented_img = img
 
         if self.dither_:
-            if np.random.randint(0, 2) == 1:
-                width = augmented_img.shape[1]
-                height = augmented_img.shape[0]
+            crop_aspect_ratio = np.random.uniform(self.aspect_ratio_limits_[0], self.aspect_ratio_limits_[1])
+            crop_height = trg_height
+            crop_width = int(float(crop_height) / crop_aspect_ratio)
 
-                left_edge = int(width * np.random.uniform(0.0, self.max_factor_left_))
-                right_edge = int(width * (1.0 - np.random.uniform(0.0, self.max_factor_right_)))
-                top_edge = int(height * np.random.uniform(0.0, self.max_factor_top_))
-                bottom_edge = int(height * (1.0 - np.random.uniform(0.0, self.max_factor_bottom_)))
+            border_size = np.random.randint(1, self.max_border_size_)
+            region_height = crop_height + 2 * border_size
+            region_width = crop_width + 2 * border_size
 
-                crop = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
-                augmented_img = cv2.resize(crop, (width, height))
+            src_aspect_ratio = float(augmented_img.shape[0]) / float(augmented_img.shape[1])
+            trg_aspect_ratio = float(region_height) / float(region_width)
+
+            if src_aspect_ratio > trg_aspect_ratio:
+                width = region_width
+                height = int(float(width) * src_aspect_ratio)
+            else:
+                height = region_height
+                width = int(float(height) / src_aspect_ratio)
+            augmented_img = cv2.resize(augmented_img, (width, height))
+
+            height_diff = augmented_img.shape[0] - crop_height
+            width_diff = augmented_img.shape[1] - crop_width
+
+            left_edge = np.random.randint(0, width_diff + 1)
+            right_edge = left_edge + crop_width
+            top_edge = np.random.randint(0, height_diff + 1)
+            bottom_edge = top_edge + crop_height
+
+            augmented_img = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
+            augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
         if self.blur_:
             if np.random.randint(0, 2) == 1:
@@ -145,10 +163,14 @@ class ExtDataLayer(caffe.Layer):
 
                     left_edge = int(np.random.uniform(self.erase_border_[0], self.erase_border_[1]) * width)
                     top_edge = int(np.random.uniform(self.erase_border_[0], self.erase_border_[1]) * height)
-                    right_edge = np.minimum(np.random.randint(left_edge, left_edge + erase_width), width)
-                    bottom_edge = np.minimum(np.random.randint(top_edge, top_edge + erase_height), height)
+                    right_edge = np.minimum(left_edge + erase_width, width)
+                    bottom_edge = np.minimum(top_edge + erase_height, height)
 
-                    fill_color = np.random.randint(0, 255, size=3, dtype=np.uint8)
+                    if np.random.randint(0, 2) == 1:
+                        fill_color = np.random.randint(0, 255, size=[bottom_edge - top_edge,
+                                                                     right_edge - left_edge, 3], dtype=np.uint8)
+                    else:
+                        fill_color = np.random.randint(0, 255, size=3, dtype=np.uint8)
                     augmented_img[top_edge:bottom_edge, left_edge:right_edge] = fill_color
 
         return augmented_img.astype(np.uint8)
@@ -167,7 +189,7 @@ class ExtDataLayer(caffe.Layer):
         for i in xrange(self.batch_size_):
             image, label = self.data_sampler_.get_image(sample_ids[i])
 
-            augmented_image = self._augment(image)
+            augmented_image = self._augment(image, self.height_, self.width_)
 
             labels_blob.append(label)
             images_blob.append(self._image_to_blob(augmented_image,
@@ -222,16 +244,11 @@ class ExtDataLayer(caffe.Layer):
 
         self.dither_ = layer_params['dither'] if 'dither' in layer_params else False
         if self.dither_:
-            self.max_factor_left_ = layer_params['max_factor_left'] if 'max_factor_left' in layer_params else 0.1
-            self.max_factor_right_ = layer_params['max_factor_right'] if 'max_factor_right' in layer_params else 0.1
-            self.max_factor_top_ = layer_params['max_factor_top'] if 'max_factor_top' in layer_params else 0.1
-            self.max_factor_bottom_ = layer_params['max_factor_bottom'] if 'max_factor_bottom' in layer_params else 0.1
-            assert 0.0 < self.max_factor_left_ < 1.0
-            assert 0.0 < self.max_factor_right_ < 1.0
-            assert 0.0 < self.max_factor_left_ + self.max_factor_right_ < 1.0
-            assert 0.0 < self.max_factor_top_ < 1.0
-            assert 0.0 < self.max_factor_bottom_ < 1.0
-            assert 0.0 < self.max_factor_top_ + self.max_factor_bottom_ < 1.0
+            self.aspect_ratio_limits_ = layer_params['aspect_ratio_limits']\
+                if 'aspect_ratio_limits' in layer_params else [1.8, 3.2]
+            self.max_border_size_ = layer_params['max_border_size'] if 'max_border_size' in layer_params else 6
+            assert 0.0 < self.aspect_ratio_limits_[0] < self.aspect_ratio_limits_[1]
+            assert 1 < self.max_border_size_
 
         self.erase_ = layer_params['erase'] if 'erase' in layer_params else False
         if self.erase_:
