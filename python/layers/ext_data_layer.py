@@ -246,7 +246,7 @@ class ExtDataLayer(caffe.Layer):
 
         if layer_params['input_type'] == 'lmdb':
             assert 'lmdb_path' in layer_params
-            data_sampler = SampleDataFromLmdb(layer_params['lmdb_path'])
+            raise Exception('Not implemented source type: {}'.format(layer_params['input_type']))
         elif layer_params['input_type'] == 'list':
             assert 'file_path' in layer_params
             data_sampler = SampleDataFromDisk(layer_params['file_path'])
