@@ -15,9 +15,11 @@ class SampleDataFromDisk:
         self._ids_by_label = {}
 
         with open(folders_path) as f:
-            for i, line in enumerate(f.readlines()):
-                line = line.strip()
-                arr = line.split()
+            all_lines = f.readlines()
+            num_lines = len(all_lines)
+            for i in range(num_lines):
+                line = all_lines[i]
+                arr = line.strip().split()
 
                 image_path = arr[0]
                 label = int(arr[1])
@@ -81,14 +83,19 @@ class ExtDataLayer(caffe.Layer):
     def _augment(self, img, trg_height, trg_width):
         augmented_img = img
 
-        if self.dither_:
-            crop_aspect_ratio = np.random.uniform(self.aspect_ratio_limits_[0], self.aspect_ratio_limits_[1])
-            crop_height = trg_height
-            crop_width = int(float(crop_height) / crop_aspect_ratio)
+        difficulty = 1. / (1. + np.exp(-self.difficulty_factor_ * float(self._epoch - self.difficulty_shift_)))
 
-            border_size = np.random.randint(1, self.max_border_size_)
-            region_height = crop_height + 2 * border_size
-            region_width = crop_width + 2 * border_size
+        if self.dither_:
+            middle_aspect = 0.5 * (self.aspect_ratio_limits_[0] + self.aspect_ratio_limits_[1])
+            min_aspect = middle_aspect - (middle_aspect - self.aspect_ratio_limits_[0]) * difficulty
+            max_aspect = middle_aspect + (self.aspect_ratio_limits_[1] - middle_aspect) * difficulty
+            crop_aspect = np.random.uniform(min_aspect, max_aspect)
+            crop_height = trg_height
+            crop_width = int(float(crop_height) / crop_aspect)
+
+            border_size = np.random.uniform(0.0, float(self.max_border_size_) * difficulty)
+            region_height = int(crop_height + 2.0 * border_size)
+            region_width = int(crop_width + 2.0 * border_size)
 
             src_aspect_ratio = float(augmented_img.shape[0]) / float(augmented_img.shape[1])
             trg_aspect_ratio = float(region_height) / float(region_width)
@@ -113,9 +120,8 @@ class ExtDataLayer(caffe.Layer):
             augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
         if self.blur_:
-            if np.random.randint(0, 2) == 1:
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.max_blur_prob_, difficulty):
                 filter_size = np.random.uniform(low=self.sigma_limits_[0], high=self.sigma_limits_[1])
-
                 augmented_img[:, :, 0] = gaussian_filter(augmented_img[:, :, 0], sigma=filter_size)
                 augmented_img[:, :, 1] = gaussian_filter(augmented_img[:, :, 1], sigma=filter_size)
                 augmented_img[:, :, 2] = gaussian_filter(augmented_img[:, :, 2], sigma=filter_size)
@@ -125,8 +131,7 @@ class ExtDataLayer(caffe.Layer):
                 augmented_img = augmented_img[:, ::-1, :]
 
         if self.gamma_:
-            rand = np.random.randint(0, 2)
-            if rand == 1:
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.max_gamma_prob_, difficulty):
                 u = np.random.uniform(-self.delta_, self.delta)
                 gamma = np.log(0.5 + (2 ** (-0.5)) * u) / np.log(0.5 - (2 ** (-0.5)) * u)
 
@@ -137,8 +142,7 @@ class ExtDataLayer(caffe.Layer):
                 augmented_img = augmented_img.astype(np.uint8)
 
         if self.brightness_:
-            rand = np.random.randint(0, 2)
-            if rand == 1:
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.max_brightness_prob_, difficulty):
                 if np.average(augmented_img) > self.min_pos_:
                     alpha = np.random.uniform(self.pos_alpha_[0], self.pos_alpha_[1])
                     beta = np.random.randint(self.pos_beta_[0], self.pos_beta_[1])
@@ -152,7 +156,7 @@ class ExtDataLayer(caffe.Layer):
                 augmented_img = augmented_img.astype(np.uint8)
 
         if self.erase_:
-            if np.random.randint(0, 2) == 1:
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.max_erase_prob_, difficulty):
                 width = augmented_img.shape[1]
                 height = augmented_img.shape[0]
 
@@ -176,25 +180,24 @@ class ExtDataLayer(caffe.Layer):
         return augmented_img.astype(np.uint8)
 
     def _sample_next_batch(self):
-        if self._index + self.batch_size_ > len(self.data_ids_):
-            self._shuffle_data()
-            self._index = 0
-
-        sample_ids = self.data_ids_[self._index:(self._index + self.batch_size_)]
-        self._index += self.batch_size_
-
         images_blob = []
         labels_blob = []
+        while len(images_blob) < self.batch_size_:
+            if self._index >= len(self.data_ids_):
+                self._shuffle_data()
+                self._index = 0
+                self._epoch += 1
 
-        for i in xrange(self.batch_size_):
-            image, label = self.data_sampler_.get_image(sample_ids[i])
+            image, label = self.data_sampler_.get_image(self.data_ids_[self._index])
+            if image is not None and label >= 0:
+                augmented_image = self._augment(image, self.height_, self.width_)
 
-            augmented_image = self._augment(image, self.height_, self.width_)
+                labels_blob.append(label)
+                images_blob.append(self._image_to_blob(augmented_image,
+                                                       self.width_, self.height_,
+                                                       self.scales_, self.subtract_))
 
-            labels_blob.append(label)
-            images_blob.append(self._image_to_blob(augmented_image,
-                                                   self.width_, self.height_,
-                                                   self.scales_, self.subtract_))
+            self._index += 1
 
         return np.array(images_blob), np.array(labels_blob)
 
@@ -223,16 +226,22 @@ class ExtDataLayer(caffe.Layer):
 
         self.scales_ = layer_params['scales'] if 'scales' in layer_params else None
         self.subtract_ = layer_params['subtract'] if 'subtract' in layer_params else None
+        self.difficulty_factor_ = layer_params['difficulty_factor'] if 'difficulty_factor' in layer_params else 0.8
+        self.difficulty_shift_ = layer_params['difficulty_shift'] if 'difficulty_shift' in layer_params else 3.0
 
         self.blur_ = layer_params['blur'] if 'blur' in layer_params else False
         if self.blur_:
             self.sigma_limits_ = layer_params['sigma_limits'] if 'sigma_limits' in layer_params else [0.0, 0.5]
+            self.max_blur_prob_ = layer_params['max_blur_prob'] if 'max_blur_prob' in layer_params else 0.5
             assert 0.0 <= self.sigma_limits_[0] < self.sigma_limits_[1]
+            assert 0.0 <= self.max_blur_prob_ <= 1.0
 
         self.gamma_ = layer_params['gamma'] if 'gamma' in layer_params else False
         if self.gamma_:
             self.delta_ = layer_params['delta'] if 'delta' in layer_params else 0.01
+            self.max_gamma_prob_ = layer_params['max_gamma_prob'] if 'max_gamma_prob' in layer_params else 0.9
             assert 0.0 < self.delta_ < 1.0
+            assert 0.0 <= self.max_gamma_prob_ <= 1.0
 
         self.brightness_ = layer_params['brightness'] if 'brightness' in layer_params else False
         if self.brightness_:
@@ -241,6 +250,8 @@ class ExtDataLayer(caffe.Layer):
             self.pos_beta_ = layer_params['pos_beta'] if 'pos_beta' in layer_params else [-100.0, 50.0]
             self.neg_alpha_ = layer_params['neg_alpha'] if 'neg_alpha' in layer_params else [0.9, 1.5]
             self.neg_beta_ = layer_params['neg_beta'] if 'neg_beta' in layer_params else [-20.0, 50.0]
+            self.max_brightness_prob_ = layer_params['max_brightness_prob'] if 'max_brightness_prob' in layer_params else 0.9
+            assert 0.0 <= self.max_brightness_prob_ <= 1.0
 
         self.dither_ = layer_params['dither'] if 'dither' in layer_params else False
         if self.dither_:
@@ -255,6 +266,8 @@ class ExtDataLayer(caffe.Layer):
             self.erase_num_ = layer_params['erase_num'] if 'erase_num' in layer_params else [1, 6]
             self.erase_size_ = layer_params['erase_size'] if 'erase_size' in layer_params else [0.2, 0.4]
             self.erase_border_ = layer_params['erase_border'] if 'erase_border' in layer_params else [0.1, 0.9]
+            self.max_erase_prob_ = layer_params['max_erase_prob'] if 'max_erase_prob' in layer_params else 0.9
+            assert 0.0 <= self.max_erase_prob_ <= 1.0
             assert 0 < self.erase_num_[0] < self.erase_num_[1]
             assert 0.0 < self.erase_size_[0] < self.erase_size_[1] < 1.0
             assert 0.0 < self.erase_border_[0] < self.erase_border_[1] < 1.0
@@ -273,6 +286,7 @@ class ExtDataLayer(caffe.Layer):
 
     def _init_states(self):
         self._index = 0
+        self._epoch = 0
 
     def setup(self, bottom, top):
         self._load_params(self.param_str)
