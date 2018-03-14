@@ -67,7 +67,7 @@ class TripletLossLayer(caffe.Layer):
         if propagate_down[0]:
             bottom_data = np.array(bottom[0].data)
 
-            factor = top[0].diff / float(bottom[0].num)
+            factor = top[0].diff[0] / float(bottom[0].num)
             bottom_diff = np.zeros(bottom[0].data.shape)
             for anchor_id, pos_id, neg_id in self.triplets:
                 bottom_diff[anchor_id] += factor * (bottom_data[neg_id] - bottom_data[pos_id])
