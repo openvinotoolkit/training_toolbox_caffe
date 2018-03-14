@@ -203,7 +203,7 @@ class ExtDataLayer(caffe.Layer):
             self._index += 1
             self._glob_index += 1
 
-        return np.array(images_blob), np.array(labels_blob)
+        return np.array(images_blob, dtype=np.float32), np.array(labels_blob, dtype=np.float32)
 
     def _set_data(self, data_sampler):
         self.data_sampler_ = data_sampler
