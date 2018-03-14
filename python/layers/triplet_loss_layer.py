@@ -18,7 +18,7 @@ class TripletLossLayer(caffe.Layer):
         return data_table
 
     def _init_states(self):
-        self.triplets = []
+        self.valid_triplets = []
 
     def setup(self, bottom, top):
         self._load_params(self.param_str)
@@ -39,7 +39,7 @@ class TripletLossLayer(caffe.Layer):
         distances = 1.0 - np.matmul(bottom_data, bottom_data.transpose())
 
         dist = 0.0
-        self.triplets = []
+        self.valid_triplets = []
         for anchor_label in labels:
             local_ids = ids_by_label_map[anchor_label]
             for anchor_id in local_ids:
@@ -56,9 +56,10 @@ class TripletLossLayer(caffe.Layer):
                 neg_id = negative_ids[np.argmin(negative_dist)]
 
                 sample_dist = self.margin_ + distances[anchor_id, pos_id] - distances[anchor_id, neg_id]
-                dist += np.maximum(sample_dist, 0.0)
-
-                self.triplets.append((anchor_id, pos_id, neg_id))
+                sample_dist = np.maximum(sample_dist, 0.0)
+                if sample_dist > 0.0:
+                    dist += np.maximum(sample_dist, 0.0)
+                    self.valid_triplets.append((anchor_id, pos_id, neg_id))
 
         loss = dist / float(num_samples)
         top[0].data[...] = loss
@@ -69,7 +70,7 @@ class TripletLossLayer(caffe.Layer):
 
             factor = top[0].diff[0] / float(bottom[0].num)
             bottom_diff = np.zeros(bottom[0].data.shape)
-            for anchor_id, pos_id, neg_id in self.triplets:
+            for anchor_id, pos_id, neg_id in self.valid_triplets:
                 bottom_diff[anchor_id] += factor * (bottom_data[neg_id] - bottom_data[pos_id])
                 bottom_diff[pos_id] += -factor * bottom_data[anchor_id]
                 bottom_diff[neg_id] += factor * bottom_data[anchor_id]
