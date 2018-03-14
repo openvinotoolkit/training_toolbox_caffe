@@ -83,7 +83,8 @@ class ExtDataLayer(caffe.Layer):
     def _augment(self, img, trg_height, trg_width):
         augmented_img = img
 
-        difficulty = 1. / (1. + np.exp(-self.difficulty_factor_ * float(self._epoch - self.difficulty_shift_)))
+        difficulty = float(self._glob_index) * float(self.max_difficulty_) / float(self.max_difficulty_iter_)
+        difficulty = np.minimum(self.max_difficulty_, difficulty)
 
         if self.dither_:
             middle_aspect = 0.5 * (self.aspect_ratio_limits_[0] + self.aspect_ratio_limits_[1])
@@ -107,6 +108,9 @@ class ExtDataLayer(caffe.Layer):
                 height = region_height
                 width = int(float(height) / src_aspect_ratio)
             augmented_img = cv2.resize(augmented_img, (width, height))
+
+            crop_height = np.minimum(crop_height, augmented_img.shape[0])
+            crop_width = np.minimum(crop_width, augmented_img.shape[1])
 
             height_diff = augmented_img.shape[0] - crop_height
             width_diff = augmented_img.shape[1] - crop_width
@@ -186,7 +190,6 @@ class ExtDataLayer(caffe.Layer):
             if self._index >= len(self.data_ids_):
                 self._shuffle_data()
                 self._index = 0
-                self._epoch += 1
 
             image, label = self.data_sampler_.get_image(self.data_ids_[self._index])
             if image is not None and label >= 0:
@@ -198,6 +201,7 @@ class ExtDataLayer(caffe.Layer):
                                                        self.scales_, self.subtract_))
 
             self._index += 1
+            self._glob_index += 1
 
         return np.array(images_blob), np.array(labels_blob)
 
@@ -226,8 +230,11 @@ class ExtDataLayer(caffe.Layer):
 
         self.scales_ = layer_params['scales'] if 'scales' in layer_params else None
         self.subtract_ = layer_params['subtract'] if 'subtract' in layer_params else None
-        self.difficulty_factor_ = layer_params['difficulty_factor'] if 'difficulty_factor' in layer_params else 0.8
-        self.difficulty_shift_ = layer_params['difficulty_shift'] if 'difficulty_shift' in layer_params else 3.0
+        self.max_difficulty_ = layer_params['max_difficulty'] if 'max_difficulty' in layer_params else 1.0
+        self.max_difficulty_iter_ = layer_params['max_difficulty_iter'] if 'max_difficulty_iter' in layer_params else 140000
+
+        assert 0.0 <= self.max_difficulty_ <= 1.0
+        assert 0 < self.max_difficulty_iter_
 
         self.blur_ = layer_params['blur'] if 'blur' in layer_params else False
         if self.blur_:
@@ -286,7 +293,7 @@ class ExtDataLayer(caffe.Layer):
 
     def _init_states(self):
         self._index = 0
-        self._epoch = 0
+        self._glob_index = 0
 
     def setup(self, bottom, top):
         self._load_params(self.param_str)
