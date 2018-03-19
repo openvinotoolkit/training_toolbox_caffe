@@ -10,6 +10,7 @@ from collections import namedtuple
 from scipy.ndimage.filters import gaussian_filter
 from tqdm import tqdm, trange
 from os import makedirs
+from time import gmtime, strftime
 
 
 SampleDesc = namedtuple('SampleDesc', 'path label')
@@ -87,12 +88,14 @@ class SolverWrapper:
 
     def _init_solver(self, solver_proto, weights=None, snapshot=None):
         self.solver = caffe.SGDSolver(solver_proto)
-        if snapshot is not None:
-            print('Loading solver snapshot: {}'.format(snapshot))
+        if snapshot is not None and exists(snapshot):
             self.solver.restore(snapshot)
-        elif weights is not None:
-            print('Loading pre-trained model weights from: {}'.format(weights))
+            print('Loaded solver snapshot: {}'.format(snapshot))
+        elif weights is not None and exists(weights):
+            for test_net_id in xrange(len(self.solver.test_nets)):
+                self.solver.test_nets[test_net_id].copy_from(weights)
             self.solver.net.copy_from(weights)
+            print('Loaded pre-trained model weights from: {}'.format(weights))
 
     def _init(self):
         self._init_log()
@@ -187,18 +190,15 @@ class SolverWrapper:
     def _augment(self, img, trg_height, trg_width):
         augmented_img = img
 
-        difficulty = float(self.train_iter) * float(self.param.max_difficulty) / float(self.param.max_difficulty_iter)
-        difficulty = np.minimum(self.param.max_difficulty, difficulty)
-
         if self.param.dither:
             middle_aspect = 0.5 * (self.param.aspect_ratio_limits[0] + self.param.aspect_ratio_limits[1])
-            min_aspect = middle_aspect - (middle_aspect - self.param.aspect_ratio_limits[0]) * difficulty
-            max_aspect = middle_aspect + (self.param.aspect_ratio_limits[1] - middle_aspect) * difficulty
+            min_aspect = middle_aspect - (middle_aspect - self.param.aspect_ratio_limits[0]) * self.difficulty
+            max_aspect = middle_aspect + (self.param.aspect_ratio_limits[1] - middle_aspect) * self.difficulty
             crop_aspect = np.random.uniform(min_aspect, max_aspect)
             crop_height = trg_height
             crop_width = int(float(crop_height) / crop_aspect)
 
-            border_size = np.random.uniform(0.0, float(self.param.max_border_size) * difficulty)
+            border_size = np.random.uniform(0.0, float(self.param.max_border_size) * self.difficulty)
             region_height = int(crop_height + 2.0 * border_size)
             region_width = int(crop_width + 2.0 * border_size)
 
@@ -228,7 +228,7 @@ class SolverWrapper:
             augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
         if self.param.blur:
-            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_blur_prob, difficulty):
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_blur_prob, self.difficulty):
                 filter_size = np.random.uniform(low=self.param.sigma_limits[0], high=self.param.sigma_limits[1])
                 augmented_img[:, :, 0] = gaussian_filter(augmented_img[:, :, 0], sigma=filter_size)
                 augmented_img[:, :, 1] = gaussian_filter(augmented_img[:, :, 1], sigma=filter_size)
@@ -239,7 +239,7 @@ class SolverWrapper:
                 augmented_img = augmented_img[:, ::-1, :]
 
         if self.param.gamma:
-            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_gamma_prob, difficulty):
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_gamma_prob, self.difficulty):
                 u = np.random.uniform(-self.param.delta, self.param.delta)
                 gamma = np.log(0.5 + (2 ** (-0.5)) * u) / np.log(0.5 - (2 ** (-0.5)) * u)
 
@@ -250,7 +250,7 @@ class SolverWrapper:
                 augmented_img = augmented_img.astype(np.uint8)
 
         if self.param.brightness:
-            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_brightness_prob, difficulty):
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_brightness_prob, self.difficulty):
                 if np.average(augmented_img) > self.param.min_pos:
                     alpha = np.random.uniform(self.param.pos_alpha[0], self.param.pos_alpha[1])
                     beta = np.random.randint(self.param.pos_beta[0], self.param.pos_beta[1])
@@ -264,7 +264,7 @@ class SolverWrapper:
                 augmented_img = augmented_img.astype(np.uint8)
 
         if self.param.erase:
-            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_erase_prob, difficulty):
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_erase_prob, self.difficulty):
                 width = augmented_img.shape[1]
                 height = augmented_img.shape[0]
 
@@ -398,6 +398,8 @@ class SolverWrapper:
             ap, cmc = self._calc_metrics(distances, self.gallery_label_blobs, self.query_label_blobs)
             print('Rank@1: {} Rank@5: {} mAP: {}'.format(cmc[0], cmc[4], ap))
 
+            return cmc[0]
+
     def _estimate_losses(self):
         print('Estimating losses...')
         net_output = self.solver.test_nets[0].forward_all(
@@ -444,10 +446,22 @@ class SolverWrapper:
         self.solver.snapshot()
 
     def _solve(self):
-        while self.train_iter < self.solver.param.max_iter:
-            print('\nStarted iter #{}'.format(self.train_iter))
+        best_rank1_acc = 0.0
+        best_iter = 0
 
-            self._test_model()
+        while self.train_iter < self.solver.param.max_iter:
+            print('\nStarted iter #{}: {}'
+                  .format(self.train_iter, strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())))
+
+            difficulty = float(self.train_iter) * float(self.param.max_difficulty) / float(
+                self.param.max_difficulty_iter)
+            self.difficulty = np.minimum(self.param.max_difficulty, difficulty)
+            print('Current difficulty: {}'.format(self.difficulty))
+
+            rank1_acc = self._test_model()
+            if rank1_acc > best_rank1_acc:
+                best_rank1_acc = rank1_acc
+                best_iter = self.train_iter - 1
 
             data_ids = self._sample_data_ids()
             self._prepare_data(data_ids)
@@ -459,6 +473,9 @@ class SolverWrapper:
 
             self._save_state()
             print('State saved.')
+            print('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc))
+            print('Finished iter #{}: {}'
+                  .format(self.train_iter, strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())))
 
             self.train_iter += 1
 
@@ -501,14 +518,14 @@ if __name__ == '__main__':
     parser.add_argument('--snapshot', default=None, help='Solver snapshot to restore.')
     parser.add_argument('--use_cpu', action='store_true', help='Use CPU device.')
     parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id')
-    parser.add_argument('--batch_size', type=int, default=16, help='Mini-batch size')
+    parser.add_argument('--batch_size', type=int, default=128, help='Mini-batch size')
     parser.add_argument('--num_images', type=int, default=4, help='Number of images per ID')
-    parser.add_argument('--image_size', type=_list_to_ints, default='320,128', help='Image size: height,width')
+    parser.add_argument('--image_size', type=_list_to_ints, default='96,48', help='Image size: height,width')
     parser.add_argument('--max_difficulty', type=float, default=1.0, help='')
-    parser.add_argument('--max_difficulty_iter', type=int, default=80000, help='')
+    parser.add_argument('--max_difficulty_iter', type=int, default=500, help='')
     parser.add_argument('--dither', type=bool, default=True, help='')
     parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='1.8,3.2', help='')
-    parser.add_argument('--max_border_size', type=int, default=12, help='')
+    parser.add_argument('--max_border_size', type=int, default=3, help='')
     parser.add_argument('--blur', type=bool, default=True, help='')
     parser.add_argument('--max_blur_prob', type=float, default=0.5, help='')
     parser.add_argument('--sigma_limits', type=_list_to_floats, default='0.0,0.5', help='')
