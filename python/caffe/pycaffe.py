@@ -191,7 +191,10 @@ def _Net_forward_all(self, blobs=None, **kwargs):
     for batch in self._batch(kwargs):
         outs = self.forward(blobs=blobs, **batch)
         for out, out_blob in six.iteritems(outs):
-            all_outs[out].extend(out_blob.copy())
+            if len(out_blob.shape) > 0:
+                all_outs[out].extend(out_blob.copy())
+            else:
+                all_outs[out].extend(out_blob.copy().reshape([-1]))
     # Package in ndarray.
     for out in all_outs:
         all_outs[out] = np.asarray(all_outs[out])

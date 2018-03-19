@@ -230,6 +230,7 @@ class ExtDataLayer(caffe.Layer):
 
         self.scales_ = layer_params['scales'] if 'scales' in layer_params else None
         self.subtract_ = layer_params['subtract'] if 'subtract' in layer_params else None
+        self.init_glob_index_ = layer_params['init_glob_index'] if 'init_glob_index' in layer_params else 0
         self.max_difficulty_ = layer_params['max_difficulty'] if 'max_difficulty' in layer_params else 1.0
         self.max_difficulty_iter_ = layer_params['max_difficulty_iter'] if 'max_difficulty_iter' in layer_params else 140000
 
@@ -257,7 +258,7 @@ class ExtDataLayer(caffe.Layer):
             self.pos_beta_ = layer_params['pos_beta'] if 'pos_beta' in layer_params else [-100.0, 50.0]
             self.neg_alpha_ = layer_params['neg_alpha'] if 'neg_alpha' in layer_params else [0.9, 1.5]
             self.neg_beta_ = layer_params['neg_beta'] if 'neg_beta' in layer_params else [-20.0, 50.0]
-            self.max_brightness_prob_ = layer_params['max_brightness_prob'] if 'max_brightness_prob' in layer_params else 0.9
+            self.max_brightness_prob_ = layer_params['max_brightness_prob'] if 'max_brightness_prob' in layer_params else 0.8
             assert 0.0 <= self.max_brightness_prob_ <= 1.0
 
         self.dither_ = layer_params['dither'] if 'dither' in layer_params else False
@@ -273,7 +274,7 @@ class ExtDataLayer(caffe.Layer):
             self.erase_num_ = layer_params['erase_num'] if 'erase_num' in layer_params else [1, 6]
             self.erase_size_ = layer_params['erase_size'] if 'erase_size' in layer_params else [0.2, 0.4]
             self.erase_border_ = layer_params['erase_border'] if 'erase_border' in layer_params else [0.1, 0.9]
-            self.max_erase_prob_ = layer_params['max_erase_prob'] if 'max_erase_prob' in layer_params else 0.9
+            self.max_erase_prob_ = layer_params['max_erase_prob'] if 'max_erase_prob' in layer_params else 0.8
             assert 0.0 <= self.max_erase_prob_ <= 1.0
             assert 0 < self.erase_num_[0] < self.erase_num_[1]
             assert 0.0 < self.erase_size_[0] < self.erase_size_[1] < 1.0
@@ -293,7 +294,7 @@ class ExtDataLayer(caffe.Layer):
 
     def _init_states(self):
         self._index = 0
-        self._glob_index = 0
+        self._glob_index = self.init_glob_index_
 
     def setup(self, bottom, top):
         self._load_params(self.param_str)
