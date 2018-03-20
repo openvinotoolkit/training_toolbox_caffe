@@ -10,11 +10,23 @@ from collections import namedtuple
 from scipy.ndimage.filters import gaussian_filter
 from tqdm import tqdm, trange
 from os import makedirs
-from time import gmtime, strftime
+from time import strftime, localtime
 
 
 SampleDesc = namedtuple('SampleDesc', 'path label')
 DataFormat = namedtuple('DataFormat', 'id_start_pos id_end_pos camera_start_pos camera_end_pos')
+PointDesc = namedtuple('PointDesc', 'values, iteration')
+
+
+# class ParetoSet:
+#     def __init__(self):
+#         self.points = []
+#
+#     def add(self, values, iter):
+#         to_include = False
+#
+#     def get(self):
+#         return
 
 
 class SampleDataFromDisk:
@@ -58,9 +70,14 @@ class SampleDataFromDisk:
 
 
 class SolverWrapper:
-    @staticmethod
-    def _init_log():
+    def _init_log(self):
         caffe.init_log(2, False)
+
+        log_file_name = 'log-{}.txt'.format(strftime('%b-%d-%Y_%H-%M-%S', localtime()))
+        self.log_stream = open(join(self.param.working_dir, 'logs', log_file_name), 'w')
+
+    def _release_log(self):
+        self.log_stream.close()
 
     @staticmethod
     def _set_device(use_gpu, device_id):
@@ -90,12 +107,15 @@ class SolverWrapper:
         self.solver = caffe.SGDSolver(solver_proto)
         if snapshot is not None and exists(snapshot):
             self.solver.restore(snapshot)
-            print('Loaded solver snapshot: {}'.format(snapshot))
-        elif weights is not None and exists(weights):
-            for test_net_id in xrange(len(self.solver.test_nets)):
-                self.solver.test_nets[test_net_id].copy_from(weights)
-            self.solver.net.copy_from(weights)
-            print('Loaded pre-trained model weights from: {}'.format(weights))
+            self._log('Loaded solver snapshot: {}'.format(snapshot), True)
+        elif weights is not None:
+            weights_paths = weights.split(',')
+            for weight_path in weights_paths:
+                if exists(weight_path):
+                    for test_net_id in xrange(len(self.solver.test_nets)):
+                        self.solver.test_nets[test_net_id].copy_from(weight_path)
+                    self.solver.net.copy_from(weight_path)
+                    self._log('Loaded pre-trained model weights from: {}'.format(weight_path), True)
 
     def _init(self):
         self._init_log()
@@ -104,6 +124,10 @@ class SolverWrapper:
         self._init_solver(self.param.solver, self.param.weights, self.param.snapshot)
 
         self.virtual_batch_size = self.param.batch_size * self.solver.param.iter_size
+
+        num_hardest = int(self.num_samples * self.param.sampler_fraction)
+        num_hardest = ((num_hardest / self.virtual_batch_size) + 1) * self.virtual_batch_size
+        self.num_hardest = np.minimum(self.num_samples, num_hardest)
 
         self._load_test_data()
 
@@ -186,6 +210,17 @@ class SolverWrapper:
         self.num_samples = self.data_sampler_.get_num_labels() * self.num_images_
 
         self._reset_states()
+
+    def _log(self, message, save_log=False, new_line_before=False):
+        full_message = '{}: {}'.format(strftime('%b-%d-%Y_%H-%M-%S', localtime()), message)
+        if new_line_before:
+            full_message = '\n' + full_message
+
+        print(full_message)
+
+        if save_log:
+            self.log_stream.write('{}\n'.format(full_message))
+            self.log_stream.flush()
 
     def _augment(self, img, trg_height, trg_width):
         augmented_img = img
@@ -383,12 +418,12 @@ class SolverWrapper:
            self.gallery_image_blobs is not None and\
            self.gallery_label_blobs is not None and \
            self.gallery_zero_label_blobs is not None:
-            print('Inference query...')
+            self._log('Inference query...')
             net_output = self.solver.test_nets[0].forward_all(
                 data=self.query_image_blobs, label=self.query_zero_label_blobs)
             query_embeddings = net_output['embd_out']
 
-            print('Inference gallery...')
+            self._log('Inference gallery...')
             net_output = self.solver.test_nets[0].forward_all(
                 data=self.gallery_image_blobs, label=self.gallery_zero_label_blobs)
             gallery_embeddings = net_output['embd_out']
@@ -396,38 +431,35 @@ class SolverWrapper:
             distances = 1. - np.matmul(gallery_embeddings, np.transpose(query_embeddings))
 
             ap, cmc = self._calc_metrics(distances, self.gallery_label_blobs, self.query_label_blobs)
-            print('Rank@1: {} Rank@5: {} mAP: {}'.format(cmc[0], cmc[4], ap))
+            self._log('Rank@1: {} Rank@5: {} mAP: {}'.format(cmc[0], cmc[4], ap), True)
 
             return cmc[0]
 
     def _estimate_losses(self):
-        print('Estimating losses...')
+        self._log('Estimating losses...')
         net_output = self.solver.test_nets[0].forward_all(
             data=self.image_blobs, label=self.label_blobs)
         losses = net_output[self.param.output_name]
+        return losses
 
-        print('Min loss: {} Mean loss: {} Max loss: {} Std: {}'
-              .format(np.min(losses), np.mean(losses), np.max(losses), np.std(losses)))
+    def _find_hardest_samples(self, losses):
+        indexed_losses = [(i, l) for i, l in enumerate(losses)]
+        indexed_losses.sort(key=lambda x: x[1], reverse=True)
+        indexed_losses = indexed_losses[:self.num_hardest]
 
-        if self.train_iter > 0:
-            sns_dist_fig = sns.distplot(losses).get_figure()
+        sample_ids = np.array([t[0] for t in indexed_losses], dtype=np.int32)
+
+        self._log('Min loss: {} Mean loss: {} Max loss: {} Std: {}'
+                  .format(np.min(losses), np.mean(losses), np.max(losses), np.std(losses)))
+
+        if np.std(losses) > 0.0:
+            sns_dist_ax = sns.distplot(losses, norm_hist=True)
+            sns_dist_ax.axvline(x=indexed_losses[-1][1], color='r')
+            sns_dist_fig = sns_dist_ax.get_figure()
 
             image_name = 'dist_{:06}.png'.format(self.train_iter)
             sns_dist_fig.savefig(join(self.param.working_dir, 'logs', 'dist', image_name))
             sns_dist_fig.clf()
-
-        return losses
-
-    def _find_hardest_samples(self, losses):
-        num_samples = int(len(losses) * self.param.sampler_fraction)
-        num_samples = ((num_samples / self.virtual_batch_size) + 1) * self.virtual_batch_size
-        num_samples = np.minimum(len(losses), num_samples)
-
-        indexed_losses = [(i, l) for i, l in enumerate(losses)]
-        indexed_losses.sort(key=lambda x: x[1], reverse=True)
-        indexed_losses = indexed_losses[:num_samples]
-
-        sample_ids = np.array([t[0] for t in indexed_losses], dtype=np.int32)
 
         return sample_ids
 
@@ -444,19 +476,19 @@ class SolverWrapper:
 
     def _save_state(self):
         self.solver.snapshot()
+        self._log('State saved.')
 
     def _solve(self):
         best_rank1_acc = 0.0
         best_iter = 0
 
         while self.train_iter < self.solver.param.max_iter:
-            print('\nStarted iter #{}: {}'
-                  .format(self.train_iter, strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())))
+            self._log('Iter #{}'.format(self.train_iter), True, True)
 
             difficulty = float(self.train_iter) * float(self.param.max_difficulty) / float(
                 self.param.max_difficulty_iter)
             self.difficulty = np.minimum(self.param.max_difficulty, difficulty)
-            print('Current difficulty: {}'.format(self.difficulty))
+            self._log('Difficulty: {}'.format(self.difficulty), True)
 
             rank1_acc = self._test_model()
             if rank1_acc > best_rank1_acc:
@@ -472,12 +504,11 @@ class SolverWrapper:
             self._train(hard_sample_ids)
 
             self._save_state()
-            print('State saved.')
-            print('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc))
-            print('Finished iter #{}: {}'
-                  .format(self.train_iter, strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())))
+            self._log('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc), True)
 
             self.train_iter += 1
+
+        self._release_log()
 
     def _process(self):
         self._init()
@@ -518,14 +549,14 @@ if __name__ == '__main__':
     parser.add_argument('--snapshot', default=None, help='Solver snapshot to restore.')
     parser.add_argument('--use_cpu', action='store_true', help='Use CPU device.')
     parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id')
-    parser.add_argument('--batch_size', type=int, default=128, help='Mini-batch size')
-    parser.add_argument('--num_images', type=int, default=4, help='Number of images per ID')
-    parser.add_argument('--image_size', type=_list_to_ints, default='96,48', help='Image size: height,width')
+    parser.add_argument('--batch_size', type=int, default=50, help='Mini-batch size')
+    parser.add_argument('--num_images', type=int, default=2, help='Number of images per ID')
+    parser.add_argument('--image_size', type=_list_to_ints, default='320,128', help='Image size: height,width')
     parser.add_argument('--max_difficulty', type=float, default=1.0, help='')
     parser.add_argument('--max_difficulty_iter', type=int, default=500, help='')
     parser.add_argument('--dither', type=bool, default=True, help='')
     parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='1.8,3.2', help='')
-    parser.add_argument('--max_border_size', type=int, default=3, help='')
+    parser.add_argument('--max_border_size', type=int, default=12, help='')
     parser.add_argument('--blur', type=bool, default=True, help='')
     parser.add_argument('--max_blur_prob', type=float, default=0.5, help='')
     parser.add_argument('--sigma_limits', type=_list_to_floats, default='0.0,0.5', help='')
@@ -547,7 +578,7 @@ if __name__ == '__main__':
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')
     parser.add_argument('--output_name', default='softmax_loss', help='')
-    parser.add_argument('--sampler_fraction', type=float, default=0.4, help='')
+    parser.add_argument('--sampler_fraction', type=float, default=0.25, help='')
     parser.add_argument('--query_dir', dest='query_dir', type=str, required=False, default='',
                         help='Path to the dir with query images')
     parser.add_argument('--gallery_dir', dest='gallery_dir', type=str, required=False, default='',
