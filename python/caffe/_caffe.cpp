@@ -95,9 +95,10 @@ void InitLogLevel(int level) {
   FLAGS_minloglevel = level;
   InitLog();
 }
-void InitLogLevelPipe(int level, bool std_err) {
+void InitLogLevelPipePlace(int level, bool std_err, std::string log_dir) {
   FLAGS_minloglevel = level;
   FLAGS_logtostderr = std_err;
+  FLAGS_log_dir = log_dir;
   InitLog();
 }
 void Log(const string& s) {
@@ -389,8 +390,8 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   // Caffe utility functions
   bp::def("init_log", &InitLog);
-  bp::def("init_log", &InitLogLevel);
-  bp::def("init_log", &InitLogLevelPipe);
+  bp::def("init_log_level", &InitLogLevel);
+  bp::def("init_log_level_pipe_place", &InitLogLevelPipePlace);
   bp::def("log", &Log);
   bp::def("set_mode_cpu", &set_mode_cpu);
   bp::def("set_mode_gpu", &set_mode_gpu);

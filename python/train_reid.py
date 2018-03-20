@@ -71,7 +71,8 @@ class SampleDataFromDisk:
 
 class SolverWrapper:
     def _init_log(self):
-        caffe.init_log(2, False)
+        glog_dir = join(self.param.working_dir, 'logs', 'caffe')
+        caffe.init_log_level_pipe_place(2, False, glog_dir)
 
         log_file_name = 'log-{}.txt'.format(strftime('%b-%d-%Y_%H-%M-%S', localtime()))
         self.log_stream = open(join(self.param.working_dir, 'logs', log_file_name), 'w')
@@ -526,10 +527,14 @@ def prepare_directory(working_dir_path):
     if not exists(working_dir_path):
         makedirs(working_dir_path)
         makedirs(join(working_dir_path, 'logs', 'dist'))
+        makedirs(join(working_dir_path, 'logs', 'caffe'))
         makedirs(join(working_dir_path, 'snapshots'))
     else:
         if not exists(join(working_dir_path, 'logs', 'dist')):
             makedirs(join(working_dir_path, 'logs', 'dist'))
+
+        if not exists(join(working_dir_path, 'logs', 'caffe')):
+            makedirs(join(working_dir_path, 'logs', 'caffe'))
 
         if not exists(join(working_dir_path, 'snapshots')):
             makedirs(join(working_dir_path, 'snapshots'))
