@@ -72,7 +72,7 @@ class ExtDataLayer(caffe.Layer):
 
             self.data_ids_ = []
             for label in all_labels:
-                label_ids = self.data_sampler_.get_ids_by_labels(label)
+                label_ids = self.data_sampler_.get_ids_by_label(label)
                 if len(label_ids) <= 0:
                     continue
 

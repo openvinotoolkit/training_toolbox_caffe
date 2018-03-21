@@ -48,7 +48,7 @@ class SampleDataFromDisk:
     def get_all_ids(self):
         return self._all_samples.keys()
 
-    def get_ids_by_labels(self, label):
+    def get_ids_by_label(self, label):
         return self._ids_by_label.get(label, [])
 
     def get_all_labels(self):
@@ -56,6 +56,12 @@ class SampleDataFromDisk:
 
     def get_num_labels(self):
         return len(self._ids_by_label.keys())
+
+    def get_num_ids(self):
+        return len(self._all_samples.keys())
+
+    def get_label_by_id(self, label):
+        return self._all_samples.get(label, SampleDesc(path=None, label=-1))
 
 
 class SolverWrapper:
@@ -120,6 +126,8 @@ class SolverWrapper:
         self.virtual_batch_size = self.param.batch_size * self.solver.param.iter_size
 
         self._load_test_data()
+
+        self.sample_iter = None
 
     @staticmethod
     def _parse_data_format(format_name):
@@ -211,6 +219,17 @@ class SolverWrapper:
         if save_log:
             self.log_stream.write('{}\n'.format(full_message))
             self.log_stream.flush()
+
+    @staticmethod
+    def _save_hist(samples, path, vline_value=None):
+        if np.std(samples) > 0.0:
+            sns_dist_ax = sns.distplot(samples, norm_hist=True)
+            if vline_value is not None:
+                sns_dist_ax.axvline(x=vline_value, color='r')
+            sns_dist_fig = sns_dist_ax.get_figure()
+
+            sns_dist_fig.savefig(path)
+            sns_dist_fig.clf()
 
     def _augment(self, img, trg_height, trg_width):
         augmented_img = img
@@ -312,22 +331,42 @@ class SolverWrapper:
 
         return augmented_img.astype(np.uint8)
 
-    def _sample_data_ids(self):
-        all_labels = np.copy(self.data_sampler_.get_all_labels())
-        np.random.shuffle(all_labels)
+    def _sample_data_ids(self, label_uniform=True):
+        if label_uniform:
+            all_labels = np.copy(self.data_sampler_.get_all_labels())
+            np.random.shuffle(all_labels)
 
-        data_ids = []
-        while len(data_ids) < self.num_samples:
-            for label in all_labels:
-                label_ids = self.data_sampler_.get_ids_by_labels(label)
-                if len(label_ids) <= 0:
-                    continue
+            data_ids = []
+            while len(data_ids) < self.num_samples:
+                for label in all_labels:
+                    label_ids = self.data_sampler_.get_ids_by_label(label)
+                    if len(label_ids) <= 0:
+                        continue
 
-                data_ids.append(np.random.choice(label_ids, 1)[0])
+                    data_ids.append(np.random.choice(label_ids, 1)[0])
 
-        data_ids = np.array(data_ids[:self.num_samples]).reshape([-1])
+            data_ids = np.array(data_ids[:self.num_samples]).reshape([-1])
+        else:
+            if self.sample_iter is None:
+                self.sample_iter = 0
+                self.data_ids_ = self.data_sampler_.get_all_ids()
+            elif (self.sample_iter + 1) * self.num_samples > self.data_sampler_.get_num_ids():
+                self.sample_iter = 0
+                np.random.shuffle(self.data_ids_)
 
-        return data_ids
+            start_pos = self.sample_iter * self.num_samples
+            end_pos = (self.sample_iter + 1) * self.num_samples
+            data_ids = self.data_ids_[start_pos:end_pos]
+
+            self.sample_iter += 1
+
+        labels = [self.data_sampler_.get_label_by_id(data_id).label for data_id in data_ids]
+        labels = np.array(labels).reshape([-1])
+        image_name = 'before_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'labels', image_name)
+        self._save_hist(labels, image_path)
+
+        return data_ids, labels
 
     def _prepare_data(self, data_ids):
         for i in trange(len(data_ids), desc='Collecting blobs'):
@@ -487,14 +526,9 @@ class SolverWrapper:
                   .format(float(num_samples) / float(self.num_samples),
                           self.param.sampler_fraction), True)
 
-        if np.std(samples) > 0.0:
-            sns_dist_ax = sns.distplot(samples, norm_hist=True)
-            sns_dist_ax.axvline(x=filtered_samples[0][0], color='r')
-            sns_dist_fig = sns_dist_ax.get_figure()
-
-            image_name = 'dist_{:06}.png'.format(self.train_iter)
-            sns_dist_fig.savefig(join(self.param.working_dir, 'logs', 'dist', image_name))
-            sns_dist_fig.clf()
+        image_name = 'dist_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'losses', image_name)
+        self._save_hist(samples, image_path, vline_value=filtered_samples[0][0])
 
         return sample_ids
 
@@ -535,11 +569,17 @@ class SolverWrapper:
                 best_rank1_acc = rank1_acc
                 best_iter = self.train_iter - 1
 
-            data_ids = self._sample_data_ids()
+            data_ids, data_labels =\
+                self._sample_data_ids(label_uniform=not self.param.default_sampler)
             self._prepare_data(data_ids)
 
             loss_values = self._estimate_losses()
             hard_sample_ids = self._find_hardest_samples(loss_values)
+
+            hard_sample_labels = data_labels[hard_sample_ids]
+            image_name = 'after_{:06}.png'.format(self.train_iter)
+            image_path = join(self.param.working_dir, 'logs', 'labels', image_name)
+            self._save_hist(hard_sample_labels, image_path)
 
             self._train(hard_sample_ids)
 
@@ -565,12 +605,16 @@ class SolverWrapper:
 def prepare_directory(working_dir_path):
     if not exists(working_dir_path):
         makedirs(working_dir_path)
-        makedirs(join(working_dir_path, 'logs', 'dist'))
+        makedirs(join(working_dir_path, 'logs', 'losses'))
+        makedirs(join(working_dir_path, 'logs', 'labels'))
         makedirs(join(working_dir_path, 'logs', 'caffe'))
         makedirs(join(working_dir_path, 'snapshots'))
     else:
-        if not exists(join(working_dir_path, 'logs', 'dist')):
-            makedirs(join(working_dir_path, 'logs', 'dist'))
+        if not exists(join(working_dir_path, 'logs', 'losses')):
+            makedirs(join(working_dir_path, 'logs', 'losses'))
+
+        if not exists(join(working_dir_path, 'logs', 'labels')):
+            makedirs(join(working_dir_path, 'logs', 'labels'))
 
         if not exists(join(working_dir_path, 'logs', 'caffe')):
             makedirs(join(working_dir_path, 'logs', 'caffe'))
@@ -624,6 +668,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_name', default='softmax_loss', help='')
     parser.add_argument('--sampler_fraction', type=float, default=0.5, help='')
     parser.add_argument('--matrix_norm', type=float, default=1.4)
+    parser.add_argument('--default_sampler', action='store_true', help='Use default sampler.')
     parser.add_argument('--query_dir', dest='query_dir', type=str, required=False, default='',
                         help='Path to the dir with query images')
     parser.add_argument('--gallery_dir', dest='gallery_dir', type=str, required=False, default='',
