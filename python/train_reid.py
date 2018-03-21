@@ -18,17 +18,6 @@ DataFormat = namedtuple('DataFormat', 'id_start_pos id_end_pos camera_start_pos 
 PointDesc = namedtuple('PointDesc', 'values, iteration')
 
 
-# class ParetoSet:
-#     def __init__(self):
-#         self.points = []
-#
-#     def add(self, values, iter):
-#         to_include = False
-#
-#     def get(self):
-#         return
-
-
 class SampleDataFromDisk:
     def __init__(self, data_file_path):
         self._all_samples = {}
@@ -117,6 +106,10 @@ class SolverWrapper:
                         self.solver.test_nets[test_net_id].copy_from(weight_path)
                     self.solver.net.copy_from(weight_path)
                     self._log('Loaded pre-trained model weights from: {}'.format(weight_path), True)
+
+        layer_names = list(self.solver.net._layer_names)
+        layer_idx = {name: i for i, name in enumerate(layer_names)}
+        self.train_outputs = {name: layer_idx[name] for name in self.solver.net.outputs}
 
     def _init(self):
         self._init_log()
@@ -451,7 +444,7 @@ class SolverWrapper:
         sample_ids = np.array([t[0] for t in indexed_losses], dtype=np.int32)
 
         self._log('Min loss: {} Mean loss: {} Max loss: {} Std: {}'
-                  .format(np.min(losses), np.mean(losses), np.max(losses), np.std(losses)))
+                  .format(np.min(losses), np.mean(losses), np.max(losses), np.std(losses)), True)
 
         if np.std(losses) > 0.0:
             sns_dist_ax = sns.distplot(losses, norm_hist=True)
@@ -472,19 +465,24 @@ class SolverWrapper:
         self.solver.net.layers[0].update_indices(ids, shuffle=True)
 
         num_train_iter = len(ids) / self.virtual_batch_size
-        for _ in trange(num_train_iter, desc='Training'):
+        for local_train_iter in xrange(num_train_iter):
             self.solver.step(1)
+
+            self._log('Train iter: {} / {}'.format(local_train_iter + 1, num_train_iter), True, True)
+            for output_name in self.solver.net.outputs:
+                output_data = self.solver.net.blobs[output_name].data
+                if output_data.size == 1:
+                    self._log('Output {}: {}'.format(output_name, output_data.reshape([-1])[0]), True)
 
     def _save_state(self):
         self.solver.snapshot()
-        self._log('State saved.')
 
     def _solve(self):
         best_rank1_acc = 0.0
         best_iter = 0
 
         while self.train_iter < self.solver.param.max_iter:
-            self._log('Iter #{}'.format(self.train_iter), True, True)
+            self._log('MetaIter #{}'.format(self.train_iter), True, True)
 
             difficulty = float(self.train_iter) * float(self.param.max_difficulty) / float(
                 self.param.max_difficulty_iter)
@@ -505,7 +503,7 @@ class SolverWrapper:
             self._train(hard_sample_ids)
 
             self._save_state()
-            self._log('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc), True)
+            self._log('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc), True, True)
 
             self.train_iter += 1
 
@@ -554,36 +552,36 @@ if __name__ == '__main__':
     parser.add_argument('--snapshot', default=None, help='Solver snapshot to restore.')
     parser.add_argument('--use_cpu', action='store_true', help='Use CPU device.')
     parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id')
-    parser.add_argument('--batch_size', type=int, default=50, help='Mini-batch size')
-    parser.add_argument('--num_images', type=int, default=2, help='Number of images per ID')
-    parser.add_argument('--image_size', type=_list_to_ints, default='320,128', help='Image size: height,width')
+    parser.add_argument('--batch_size', type=int, default=128, help='Mini-batch size')
+    parser.add_argument('--num_images', type=int, default=4, help='Number of images per ID')
+    parser.add_argument('--image_size', type=_list_to_ints, default='120,48', help='Image size: height,width')
     parser.add_argument('--max_difficulty', type=float, default=1.0, help='')
     parser.add_argument('--max_difficulty_iter', type=int, default=500, help='')
     parser.add_argument('--dither', type=bool, default=True, help='')
     parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='1.8,3.2', help='')
-    parser.add_argument('--max_border_size', type=int, default=12, help='')
+    parser.add_argument('--max_border_size', type=int, default=6, help='')
     parser.add_argument('--blur', type=bool, default=True, help='')
     parser.add_argument('--max_blur_prob', type=float, default=0.5, help='')
     parser.add_argument('--sigma_limits', type=_list_to_floats, default='0.0,0.5', help='')
     parser.add_argument('--mirror', type=bool, default=True, help='')
     parser.add_argument('--gamma', type=bool, default=True, help='')
-    parser.add_argument('--max_gamma_prob', type=float, default=0.9, help='')
+    parser.add_argument('--max_gamma_prob', type=float, default=0.5, help='')
     parser.add_argument('--delta', type=float, default=0.01, help='')
     parser.add_argument('--brightness', type=bool, default=True, help='')
-    parser.add_argument('--max_brightness_prob', type=float, default=0.8, help='')
+    parser.add_argument('--max_brightness_prob', type=float, default=0.5, help='')
     parser.add_argument('--min_pos', type=float, default=128.0, help='')
     parser.add_argument('--pos_alpha', type=_list_to_floats, default='0.2,1.1', help='')
     parser.add_argument('--pos_beta', type=_list_to_floats, default='-20.0,10.0', help='')
     parser.add_argument('--neg_alpha', type=_list_to_floats, default='0.9,1.5', help='')
     parser.add_argument('--neg_beta', type=_list_to_floats, default='-10.0,20.0', help='')
     parser.add_argument('--erase', type=bool, default=True, help='')
-    parser.add_argument('--max_erase_prob', type=float, default=0.8, help='')
+    parser.add_argument('--max_erase_prob', type=float, default=0.5, help='')
     parser.add_argument('--erase_num', type=_list_to_ints, default='1,4', help='')
     parser.add_argument('--erase_size', type=_list_to_floats, default='0.3,0.6', help='')
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')
     parser.add_argument('--output_name', default='softmax_loss', help='')
-    parser.add_argument('--sampler_fraction', type=float, default=0.25, help='')
+    parser.add_argument('--sampler_fraction', type=float, default=0.4, help='')
     parser.add_argument('--query_dir', dest='query_dir', type=str, required=False, default='',
                         help='Path to the dir with query images')
     parser.add_argument('--gallery_dir', dest='gallery_dir', type=str, required=False, default='',
