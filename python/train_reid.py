@@ -119,10 +119,6 @@ class SolverWrapper:
 
         self.virtual_batch_size = self.param.batch_size * self.solver.param.iter_size
 
-        num_hardest = int(self.num_samples * self.param.sampler_fraction)
-        num_hardest = ((num_hardest / self.virtual_batch_size) + 1) * self.virtual_batch_size
-        self.num_hardest = np.minimum(self.num_samples, num_hardest)
-
         self._load_test_data()
 
     @staticmethod
@@ -436,19 +432,64 @@ class SolverWrapper:
         losses = net_output[self.param.output_name]
         return losses
 
-    def _find_hardest_samples(self, losses):
-        indexed_losses = [(i, l) for i, l in enumerate(losses)]
-        indexed_losses.sort(key=lambda x: x[1], reverse=True)
-        indexed_losses = indexed_losses[:self.num_hardest]
+    def _find_hardest_samples(self, samples):
+        def _to_valid_size(num):
+            valid_num = int(num / self.virtual_batch_size) * self.virtual_batch_size
+            valid_num = np.maximum(np.minimum(self.num_samples, valid_num), self.virtual_batch_size)
+            return valid_num
 
-        sample_ids = np.array([t[0] for t in indexed_losses], dtype=np.int32)
+        assert samples.size == self.num_samples
 
         self._log('Min loss: {} Mean loss: {} Max loss: {} Std: {}'
-                  .format(np.min(losses), np.mean(losses), np.max(losses), np.std(losses)), True)
+                  .format(np.min(samples), np.mean(samples), np.max(samples), np.std(samples)), True)
 
-        if np.std(losses) > 0.0:
-            sns_dist_ax = sns.distplot(losses, norm_hist=True)
-            sns_dist_ax.axvline(x=indexed_losses[-1][1], color='r')
+        num_selected_samples = int(self.num_samples * self.param.sampler_fraction)
+        # diff = num_selected_samples - self.num_samples + 1
+        # q = self.param.matrix_norm / (self.param.matrix_norm - 1.0)
+        # inv_q = (self.param.matrix_norm - 1.0) / self.param.matrix_norm
+
+        indexed_samples = [(l, i) for i, l in enumerate(samples)]
+        indexed_samples.sort(key=lambda x: x[0], reverse=False)
+
+        # max_loss_value = indexed_samples[-1][0]
+        # prev_a = 0.0
+        # cur_a = 0.0
+        # nu = 0.0
+        # i = 0
+        # while i < self.num_samples:
+        #     norm_pow_loss_value = np.power(indexed_samples[i][0] / max_loss_value, q)
+        #     prev_a = cur_a
+        #     cur_a += norm_pow_loss_value
+        #     nu = float(diff + i) * norm_pow_loss_value - cur_a
+        #     if nu > 0.0:
+        #         break
+        #
+        #     i += 1
+        # print('##### {} / {}'.format(i, self.num_samples - 1))
+        #
+        # if nu < 0.0:
+        #     alpha = pow(cur_a / float(num_selected_samples), inv_q)
+        # else:
+        #     alpha = pow(prev_a / float(diff + i - 1), inv_q)
+        # alpha *= max_loss_value
+        #
+        # if alpha > 0:
+        #     num_samples = _to_valid_size(self.num_samples - i)
+        # else:
+        #     num_samples = self.virtual_batch_size
+
+        num_samples = _to_valid_size(num_selected_samples)
+
+        filtered_samples = indexed_samples[-num_samples:]
+        sample_ids = np.array([t[1] for t in filtered_samples], dtype=np.int32)
+
+        self._log('Estimated fraction: {} Original: {}'
+                  .format(float(num_samples) / float(self.num_samples),
+                          self.param.sampler_fraction), True)
+
+        if np.std(samples) > 0.0:
+            sns_dist_ax = sns.distplot(samples, norm_hist=True)
+            sns_dist_ax.axvline(x=filtered_samples[0][0], color='r')
             sns_dist_fig = sns_dist_ax.get_figure()
 
             image_name = 'dist_{:06}.png'.format(self.train_iter)
@@ -581,7 +622,8 @@ if __name__ == '__main__':
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')
     parser.add_argument('--output_name', default='softmax_loss', help='')
-    parser.add_argument('--sampler_fraction', type=float, default=0.4, help='')
+    parser.add_argument('--sampler_fraction', type=float, default=0.5, help='')
+    parser.add_argument('--matrix_norm', type=float, default=1.4)
     parser.add_argument('--query_dir', dest='query_dir', type=str, required=False, default='',
                         help='Path to the dir with query images')
     parser.add_argument('--gallery_dir', dest='gallery_dir', type=str, required=False, default='',
