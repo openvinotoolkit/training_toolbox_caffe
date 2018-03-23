@@ -397,7 +397,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 221 (last added: eliminate_param)
+// LayerParameter next available layer-specific ID: 222 (last added: center_loss_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -528,6 +528,7 @@ message LayerParameter {
   optional LabelSpecificAddParameter label_specific_add_param = 218;
   optional GeneralTripletParameter general_triplet_loss_param = 219;
   optional EliminateParameter eliminate_param = 220;
+  optional CenterLossParameter center_loss_param = 221;
 }
 
 message InterpParameter {
@@ -1919,3 +1920,13 @@ message GeneralTripletParameter {
 message EliminateParameter {
   optional float off_value = 1 [default = -1.0];
 }
+
+message CenterLossParameter {
+  optional uint32 num_output = 1; // The number of outputs for the layer
+  optional FillerParameter center_filler = 2; // The filler for the centers
+  // The first axis to be lumped into a single inner product computation;
+  // all preceding axes are retained in the output.
+  // May be negative to index from the end (e.g., -1 for the last axis).
+  optional int32 axis = 3 [default = 1];
+}
+
