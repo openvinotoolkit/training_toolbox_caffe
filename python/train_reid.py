@@ -11,6 +11,7 @@ from scipy.ndimage.filters import gaussian_filter
 from tqdm import tqdm, trange
 from os import makedirs
 from time import strftime, localtime
+from operator import itemgetter
 
 
 SampleDesc = namedtuple('SampleDesc', 'path label')
@@ -113,10 +114,6 @@ class SolverWrapper:
                     self.solver.net.copy_from(weight_path)
                     self._log('Loaded pre-trained model weights from: {}'.format(weight_path), True)
 
-        layer_names = list(self.solver.net._layer_names)
-        layer_idx = {name: i for i, name in enumerate(layer_names)}
-        self.train_outputs = {name: layer_idx[name] for name in self.solver.net.outputs}
-
     def _init(self):
         self._init_log()
         self._set_device(not self.param.use_cpu, self.param.gpu_id)
@@ -205,7 +202,11 @@ class SolverWrapper:
         self.num_images_ = self.param.num_images
         self.image_size_ = self.param.image_size
 
-        self.num_samples = self.data_sampler_.get_num_labels() * self.num_images_
+        if self.param.label_fraction > 0.0:
+            local_num_labels = int(self.param.label_fraction * self.data_sampler_.get_num_labels())
+            self.num_samples = local_num_labels * self.num_images_
+        else:
+            self.num_samples = self.data_sampler_.get_num_labels() * self.num_images_
 
         self._reset_states()
 
@@ -331,22 +332,8 @@ class SolverWrapper:
 
         return augmented_img.astype(np.uint8)
 
-    def _sample_data_ids(self, label_uniform=True):
-        if label_uniform:
-            all_labels = np.copy(self.data_sampler_.get_all_labels())
-            np.random.shuffle(all_labels)
-
-            data_ids = []
-            while len(data_ids) < self.num_samples:
-                for label in all_labels:
-                    label_ids = self.data_sampler_.get_ids_by_label(label)
-                    if len(label_ids) <= 0:
-                        continue
-
-                    data_ids.append(np.random.choice(label_ids, 1)[0])
-
-            data_ids = np.array(data_ids[:self.num_samples]).reshape([-1])
-        else:
+    def _sample_data_ids(self):
+        if self.param.default_sampler:
             if self.sample_iter is None:
                 self.sample_iter = 0
                 self.data_ids_ = self.data_sampler_.get_all_ids()
@@ -359,6 +346,24 @@ class SolverWrapper:
             data_ids = self.data_ids_[start_pos:end_pos]
 
             self.sample_iter += 1
+        else:
+            all_labels = np.copy(self.data_sampler_.get_all_labels())
+            np.random.shuffle(all_labels)
+
+            if self.param.label_fraction > 0.0:
+                local_num_labels = int(self.param.label_fraction * len(all_labels))
+                all_labels = all_labels[:min(local_num_labels, len(all_labels))]
+
+            data_ids = []
+            while len(data_ids) < self.num_samples:
+                for label in all_labels:
+                    label_ids = self.data_sampler_.get_ids_by_label(label)
+                    if len(label_ids) <= 0:
+                        continue
+
+                    data_ids.append(np.random.choice(label_ids, 1)[0])
+
+            data_ids = np.array(data_ids[:self.num_samples]).reshape([-1])
 
         labels = [self.data_sampler_.get_label_by_id(data_id).label for data_id in data_ids]
         labels = np.array(labels).reshape([-1])
@@ -441,6 +446,14 @@ class SolverWrapper:
         return ap, cmc
 
     def _test_model(self):
+        def _embeddings(net, data, label=None):
+            if label is None:
+                net_out = net.forward_all(data=data)
+            else:
+                net_out = net.forward_all(data=data, label=label)
+            embeddings = net_out['embd_out']
+            return embeddings
+
         if self.query_image_blobs is not None and\
            self.query_label_blobs is not None and \
            self.query_zero_label_blobs is not None and\
@@ -448,14 +461,14 @@ class SolverWrapper:
            self.gallery_label_blobs is not None and \
            self.gallery_zero_label_blobs is not None:
             self._log('Inference query...')
-            net_output = self.solver.test_nets[0].forward_all(
-                data=self.query_image_blobs, label=self.query_zero_label_blobs)
-            query_embeddings = net_output['embd_out']
+            query_embeddings = _embeddings(self.solver.test_nets[0],
+                                           self.query_image_blobs,
+                                           self.query_zero_label_blobs if not self.param.triplet else None)
 
             self._log('Inference gallery...')
-            net_output = self.solver.test_nets[0].forward_all(
-                data=self.gallery_image_blobs, label=self.gallery_zero_label_blobs)
-            gallery_embeddings = net_output['embd_out']
+            gallery_embeddings = _embeddings(self.solver.test_nets[0],
+                                             self.gallery_image_blobs,
+                                             self.gallery_zero_label_blobs if not self.param.triplet else None)
 
             distances = 1. - np.matmul(gallery_embeddings, np.transpose(query_embeddings))
 
@@ -464,12 +477,116 @@ class SolverWrapper:
 
             return cmc[0]
 
-    def _estimate_losses(self):
+    def _estimate_classification_losses(self):
         self._log('Estimating losses...')
         net_output = self.solver.test_nets[0].forward_all(
             data=self.image_blobs, label=self.label_blobs)
         losses = net_output[self.param.output_name]
         return losses
+
+    def _estimate_embeddings(self):
+        self._log('Estimating embeddings...')
+        net_output = self.solver.test_nets[0].forward_all(
+            data=self.image_blobs)
+        embeddings = net_output[self.param.embd_output_name]
+
+        return embeddings
+
+    def _extract_triplets(self, embeddings, labels):
+        def _hardest_triplet(pos1, pos2, neg, pos_dist):
+            d1 = 1. - np.sum(embeddings[pos1] * embeddings[neg])
+            d2 = 1. - np.sum(embeddings[pos2] * embeddings[neg])
+            if d1 < d2:
+                dist = max(self.param.triplet_margin + pos_dist - d1, 0.0)
+                return pos1, pos2, neg, dist
+            else:
+                dist = max(self.param.triplet_margin + pos_dist - d2, 0.0)
+                return pos2, pos1, neg, dist
+
+        ids_by_label = {}
+        for i, label in enumerate(labels):
+            int_label = int(label)
+            ids_by_label[int_label] = ids_by_label.get(int_label, []) + [i]
+
+        hardest_positives = {}
+        for label in tqdm(ids_by_label.keys(), desc='Estimating hardest positives'):
+            ids = ids_by_label[label]
+            if len(ids) < 1:
+                continue
+
+            all_positives = [(ids[i], ids[j], 1. - np.sum(embeddings[ids[i]] * embeddings[ids[j]]))
+                             for i in xrange(len(ids)) for j in xrange(i + 1, len(ids))]
+            all_positives.sort(key=itemgetter(2), reverse=True)
+
+            num_top_positives = min(len(all_positives), 2)
+            hardest_positives[label] = all_positives[:num_top_positives]
+
+        hardest_triplets = []
+        unique_labels = ids_by_label.keys()
+        for i in trange(len(unique_labels), desc='Estimating hardest triplets'):
+            src_label = unique_labels[i]
+            src_positives = hardest_positives[src_label]
+            for j in xrange(i + 1, len(unique_labels)):
+                trg_label = unique_labels[j]
+                trg_ids = ids_by_label[trg_label]
+
+                trg_triplets = [_hardest_triplet(src_positive[0], src_positive[1], trg_id, src_positive[2])
+                                for src_positive in src_positives for trg_id in trg_ids]
+                trg_triplets = [t for t in trg_triplets if t[3] > 0.0]
+                trg_triplets.sort(key=itemgetter(3), reverse=True)
+
+                num_top_triplets = min(len(trg_triplets), 2)
+                hardest_triplets += trg_triplets[:num_top_triplets]
+        self._log('Found {} valid triplets'.format(len(hardest_triplets)), True)
+
+        samples = [t[3] for t in hardest_triplets]
+        self._log('All samples. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(samples), np.mean(samples),
+                          np.max(samples), np.std(samples)), True)
+
+        image_name = 'dist_all_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'losses', image_name)
+        self._save_hist(samples, image_path)
+
+        hardest_triplets.sort(key=itemgetter(3), reverse=True)
+
+        num_selected_triplets = min(len(hardest_triplets), self.param.num_triplets)
+        hardest_triplets = hardest_triplets[:num_selected_triplets]
+
+        samples = [t[3] for t in hardest_triplets]
+        self._log('Filtered samples. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(samples), np.mean(samples),
+                          np.max(samples), np.std(samples)), True)
+
+        image_name = 'dist_filtered_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'losses', image_name)
+        self._save_hist(samples, image_path)
+
+        return hardest_triplets
+
+    def _reorder_triplet_samples(self, triplets):
+        assert self.param.batch_size % 3 == 0
+        num_triplets_in_batch = int(self.param.batch_size / 3)
+
+        assert len(triplets) >= num_triplets_in_batch
+
+        num_batches = max(1, len(triplets) / num_triplets_in_batch)
+
+        triplet_ids = np.array(range(len(triplets)), dtype=np.int32)
+        np.random.shuffle(triplet_ids)
+
+        final_sample_ids = []
+        for batch_id in xrange(num_batches):
+            anchor_ids, pos_ids, neg_ids = [], [], []
+            for i in xrange(num_triplets_in_batch):
+                triplet = triplets[triplet_ids[batch_id * num_triplets_in_batch + i]]
+                anchor_ids.append(triplet[0])
+                pos_ids.append(triplet[1])
+                neg_ids.append(triplet[2])
+
+            final_sample_ids += anchor_ids + pos_ids + neg_ids
+
+        return final_sample_ids
 
     def _find_hardest_samples(self, samples):
         def _to_valid_size(num):
@@ -479,48 +596,18 @@ class SolverWrapper:
 
         assert samples.size == self.num_samples
 
-        self._log('Min loss: {} Mean loss: {} Max loss: {} Std: {}'
-                  .format(np.min(samples), np.mean(samples), np.max(samples), np.std(samples)), True)
+        self._log('All samples. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(samples), np.mean(samples),
+                          np.max(samples), np.std(samples)), True)
 
         num_selected_samples = int(self.num_samples * self.param.sampler_fraction)
-        # diff = num_selected_samples - self.num_samples + 1
-        # q = self.param.matrix_norm / (self.param.matrix_norm - 1.0)
-        # inv_q = (self.param.matrix_norm - 1.0) / self.param.matrix_norm
 
         indexed_samples = [(l, i) for i, l in enumerate(samples)]
-        indexed_samples.sort(key=lambda x: x[0], reverse=False)
-
-        # max_loss_value = indexed_samples[-1][0]
-        # prev_a = 0.0
-        # cur_a = 0.0
-        # nu = 0.0
-        # i = 0
-        # while i < self.num_samples:
-        #     norm_pow_loss_value = np.power(indexed_samples[i][0] / max_loss_value, q)
-        #     prev_a = cur_a
-        #     cur_a += norm_pow_loss_value
-        #     nu = float(diff + i) * norm_pow_loss_value - cur_a
-        #     if nu > 0.0:
-        #         break
-        #
-        #     i += 1
-        # print('##### {} / {}'.format(i, self.num_samples - 1))
-        #
-        # if nu < 0.0:
-        #     alpha = pow(cur_a / float(num_selected_samples), inv_q)
-        # else:
-        #     alpha = pow(prev_a / float(diff + i - 1), inv_q)
-        # alpha *= max_loss_value
-        #
-        # if alpha > 0:
-        #     num_samples = _to_valid_size(self.num_samples - i)
-        # else:
-        #     num_samples = self.virtual_batch_size
+        indexed_samples.sort(key=lambda x: x[0], reverse=True)
 
         num_samples = _to_valid_size(num_selected_samples)
-
-        filtered_samples = indexed_samples[-num_samples:]
-        sample_ids = np.array([t[1] for t in filtered_samples], dtype=np.int32)
+        filtered_indexed_samples = indexed_samples[:num_samples]
+        sample_ids = np.array([t[1] for t in filtered_indexed_samples], dtype=np.int32)
 
         self._log('Estimated fraction: {} Original: {}'
                   .format(float(num_samples) / float(self.num_samples),
@@ -528,16 +615,21 @@ class SolverWrapper:
 
         image_name = 'dist_{:06}.png'.format(self.train_iter)
         image_path = join(self.param.working_dir, 'logs', 'losses', image_name)
-        self._save_hist(samples, image_path, vline_value=filtered_samples[0][0])
+        self._save_hist(samples, image_path, vline_value=filtered_indexed_samples[-1][0])
+
+        values = [t[0] for t in filtered_indexed_samples]
+        self._log('Filtered samples. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(values), np.mean(values),
+                          np.max(values), np.std(values)), True)
 
         return sample_ids
 
-    def _train(self, ids):
+    def _train(self, ids, shuffle):
         assert len(ids) >= self.virtual_batch_size
         assert len(ids) % self.virtual_batch_size == 0
 
         self.solver.net.layers[0].update_data(self.image_blobs, self.label_blobs)
-        self.solver.net.layers[0].update_indices(ids, shuffle=True)
+        self.solver.net.layers[0].update_indices(ids, shuffle=shuffle)
 
         num_train_iter = len(ids) / self.virtual_batch_size
         for local_train_iter in xrange(num_train_iter):
@@ -567,21 +659,27 @@ class SolverWrapper:
             rank1_acc = self._test_model()
             if rank1_acc > best_rank1_acc:
                 best_rank1_acc = rank1_acc
-                best_iter = self.train_iter - 1
+                best_iter = self.train_iter
 
             data_ids, data_labels =\
-                self._sample_data_ids(label_uniform=not self.param.default_sampler)
+                self._sample_data_ids()
             self._prepare_data(data_ids)
 
-            loss_values = self._estimate_losses()
-            hard_sample_ids = self._find_hardest_samples(loss_values)
+            if self.param.triplet:
+                embeddings = self._estimate_embeddings()
+                print('embeddings shape: {}'.format(embeddings.shape))
+                triplets = self._extract_triplets(embeddings, self.label_blobs)
+                hard_sample_ids = self._reorder_triplet_samples(triplets)
+            else:
+                loss_values = self._estimate_classification_losses()
+                hard_sample_ids = self._find_hardest_samples(loss_values)
 
             hard_sample_labels = data_labels[hard_sample_ids]
             image_name = 'after_{:06}.png'.format(self.train_iter)
             image_path = join(self.param.working_dir, 'logs', 'labels', image_name)
             self._save_hist(hard_sample_labels, image_path)
 
-            self._train(hard_sample_ids)
+            self._train(hard_sample_ids, shuffle=not self.param.triplet)
 
             self._save_state()
             self._log('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc), True, True)
@@ -637,8 +735,8 @@ if __name__ == '__main__':
     parser.add_argument('--snapshot', default=None, help='Solver snapshot to restore.')
     parser.add_argument('--use_cpu', action='store_true', help='Use CPU device.')
     parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id')
-    parser.add_argument('--batch_size', type=int, default=128, help='Mini-batch size')
-    parser.add_argument('--num_images', type=int, default=4, help='Number of images per ID')
+    parser.add_argument('--batch_size', type=int, default=126, help='Mini-batch size')
+    parser.add_argument('--num_images', type=int, default=6, help='Number of images per ID')
     parser.add_argument('--image_size', type=_list_to_ints, default='120,48', help='Image size: height,width')
     parser.add_argument('--max_difficulty', type=float, default=1.0, help='')
     parser.add_argument('--max_difficulty_iter', type=int, default=500, help='')
@@ -666,9 +764,13 @@ if __name__ == '__main__':
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')
     parser.add_argument('--output_name', default='softmax_loss', help='')
+    parser.add_argument('--embd_output_name', default='embd_out', help='')
     parser.add_argument('--sampler_fraction', type=float, default=0.5, help='')
-    parser.add_argument('--matrix_norm', type=float, default=1.4)
     parser.add_argument('--default_sampler', action='store_true', help='Use default sampler.')
+    parser.add_argument('--triplet', action='store_true', help='Init to use with triplet loss.')
+    parser.add_argument('--triplet_margin', type=float, default=0.2, help='Margin for Triplet loss')
+    parser.add_argument('--num_triplets', type=int, default=3000, help='Max number of triplets to use in loss')
+    parser.add_argument('--label_fraction', type=float, default=-1, help='Fraction of labels on each iteration')
     parser.add_argument('--query_dir', dest='query_dir', type=str, required=False, default='',
                         help='Path to the dir with query images')
     parser.add_argument('--gallery_dir', dest='gallery_dir', type=str, required=False, default='',
