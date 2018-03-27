@@ -47,7 +47,7 @@ class CenterLossLayer(caffe.Layer):
             embeddings_diff = np.zeros(bottom[0].data.shape)
             for sample_id in xrange(batch_size):
                 label = labels[sample_id]
-                embeddings_diff[sample_id] = -factor * centers[label]
+                embeddings_diff[sample_id] += -factor * centers[label]
             bottom[0].diff[...] = embeddings_diff
 
         if propagate_down[1]:
@@ -57,7 +57,7 @@ class CenterLossLayer(caffe.Layer):
             centers_diff = np.zeros(bottom[2].data.shape)
             for label in self.sample_id_by_label.keys():
                 for sample_id in self.sample_id_by_label[label]:
-                    centers_diff[label] = -factor * embeddings[sample_id]
+                    centers_diff[label] += -factor * embeddings[sample_id]
             bottom[2].diff[...] = centers_diff
 
     def reshape(self, bottom, top):
