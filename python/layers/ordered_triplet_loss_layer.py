@@ -18,14 +18,13 @@ class OrderedTripletLossLayer(caffe.Layer):
 
     def forward(self, bottom, top):
         bottom_data = np.array(bottom[0].data).astype(np.float32)
-        num_samples = bottom[0].num
 
         assert len(bottom_data.shape) == 2
-        assert num_samples % 3 == 0
+        assert bottom[0].num % 3 == 0
 
-        num_triplets = int(num_samples / 3)
-        pos_distances = 1. - np.sum(bottom_data[:num_triplets] * bottom_data[num_triplets:(2 * num_triplets)], axis=0)
-        neg_distances = 1. - np.sum(bottom_data[:num_triplets] * bottom_data[(2 * num_triplets):], axis=0)
+        num_triplets = int(bottom[0].num / 3)
+        pos_distances = 1. - np.sum(bottom_data[:num_triplets] * bottom_data[num_triplets:(2 * num_triplets)], axis=1)
+        neg_distances = 1. - np.sum(bottom_data[:num_triplets] * bottom_data[(2 * num_triplets):], axis=1)
 
         dist = 0.0
         intra_class_dist = 0.0
@@ -40,8 +39,7 @@ class OrderedTripletLossLayer(caffe.Layer):
             intra_class_dist += pos_distances[triplet_id]
             inter_class_dist += neg_distances[triplet_id]
 
-            sample_dist = np.maximum(self.margin_ + pos_distances[triplet_id] - neg_distances[triplet_id], 0.0)
-            dist += sample_dist
+            dist += np.maximum(self.margin_ + pos_distances[triplet_id] - neg_distances[triplet_id], 0.0)
             self.triplets.append((anchor_id, pos_id, neg_id))
 
         loss = dist / float(num_triplets)
@@ -61,6 +59,8 @@ class OrderedTripletLossLayer(caffe.Layer):
                 bottom_diff[anchor_id] += factor * (bottom_data[neg_id] - bottom_data[pos_id])
                 bottom_diff[pos_id] += -factor * bottom_data[anchor_id]
                 bottom_diff[neg_id] += factor * bottom_data[anchor_id]
+                # bottom_diff[pos_id] += factor * (bottom_data[pos_id] - bottom_data[anchor_id])
+                # bottom_diff[neg_id] += factor * (bottom_data[anchor_id] - bottom_data[neg_id])
 
             bottom[0].diff[...] = bottom_diff
 

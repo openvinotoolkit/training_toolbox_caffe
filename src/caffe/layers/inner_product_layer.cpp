@@ -13,8 +13,7 @@ void InnerProductLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   bias_term_ = this->layer_param_.inner_product_param().bias_term();
   transpose_ = this->layer_param_.inner_product_param().transpose();
   normalize_ = this->layer_param_.inner_product_param().normalize();
-  if (bottom.size() == 1) N_ = num_output;
-  else N_ = bottom[1]->num();
+  N_ = bottom.size() == 1 ? num_output : bottom[1]->num();
   const int axis = bottom[0]->CanonicalAxisIndex(
       this->layer_param_.inner_product_param().axis());
   // Dimensions starting from "axis" are "flattened" into a single
@@ -67,7 +66,9 @@ void InnerProductLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       bias_filler->Fill(this->blobs_[bias_index].get());
     }
   }  // parameter initialization
-  if (bottom.size() == 1) this->param_propagate_down_.resize(this->blobs_.size(), true);
+  if (bottom.size() == 1) {
+    this->param_propagate_down_.resize(this->blobs_.size(), true);
+  }
 }
 
 template <typename Dtype>

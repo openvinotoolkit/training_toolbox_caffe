@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "caffe/layer.hpp"
+#include "caffe/filler.hpp"
 
 namespace caffe {
 
@@ -20,6 +21,10 @@ class ParameterLayer : public Layer<Dtype> {
       this->blobs_.resize(1);
       this->blobs_[0].reset(new Blob<Dtype>());
       this->blobs_[0]->Reshape(this->layer_param_.parameter_param().shape());
+      // fill the weights
+      shared_ptr<Filler<Dtype> > weight_filler(GetFiller<Dtype>(
+        this->layer_param_.parameter_param().filler()));
+      weight_filler->Fill(this->blobs_[0].get());
     }
     top[0]->Reshape(this->layer_param_.parameter_param().shape());
   }

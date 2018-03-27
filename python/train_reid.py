@@ -451,7 +451,7 @@ class SolverWrapper:
                 net_out = net.forward_all(data=data)
             else:
                 net_out = net.forward_all(data=data, label=label)
-            embeddings = net_out['embd_out']
+            embeddings = net_out[self.param.embd_output_name]
             return embeddings
 
         if self.query_image_blobs is not None and\
@@ -489,7 +489,6 @@ class SolverWrapper:
         net_output = self.solver.test_nets[0].forward_all(
             data=self.image_blobs)
         embeddings = net_output[self.param.embd_output_name]
-
         return embeddings
 
     def _extract_triplets(self, embeddings, labels):
@@ -566,7 +565,7 @@ class SolverWrapper:
 
     def _reorder_triplet_samples(self, triplets):
         assert self.param.batch_size % 3 == 0
-        num_triplets_in_batch = int(self.param.batch_size / 3)
+        num_triplets_in_batch = self.param.batch_size / 3
 
         assert len(triplets) >= num_triplets_in_batch
 
@@ -667,7 +666,6 @@ class SolverWrapper:
 
             if self.param.triplet:
                 embeddings = self._estimate_embeddings()
-                print('embeddings shape: {}'.format(embeddings.shape))
                 triplets = self._extract_triplets(embeddings, self.label_blobs)
                 hard_sample_ids = self._reorder_triplet_samples(triplets)
             else:
@@ -735,14 +733,14 @@ if __name__ == '__main__':
     parser.add_argument('--snapshot', default=None, help='Solver snapshot to restore.')
     parser.add_argument('--use_cpu', action='store_true', help='Use CPU device.')
     parser.add_argument('--gpu_id', type=int, default=0, help='GPU device id')
-    parser.add_argument('--batch_size', type=int, default=126, help='Mini-batch size')
-    parser.add_argument('--num_images', type=int, default=6, help='Number of images per ID')
-    parser.add_argument('--image_size', type=_list_to_ints, default='120,48', help='Image size: height,width')
+    parser.add_argument('--batch_size', type=int, default=128, help='Mini-batch size')
+    parser.add_argument('--num_images', type=int, default=4, help='Number of images per ID')
+    parser.add_argument('--image_size', type=_list_to_ints, default='112,48', help='Image size: height,width')
     parser.add_argument('--max_difficulty', type=float, default=1.0, help='')
     parser.add_argument('--max_difficulty_iter', type=int, default=500, help='')
     parser.add_argument('--dither', type=bool, default=True, help='')
-    parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='1.8,3.2', help='')
-    parser.add_argument('--max_border_size', type=int, default=6, help='')
+    parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='2.0,3.0', help='')
+    parser.add_argument('--max_border_size', type=int, default=2, help='')
     parser.add_argument('--blur', type=bool, default=True, help='')
     parser.add_argument('--max_blur_prob', type=float, default=0.5, help='')
     parser.add_argument('--sigma_limits', type=_list_to_floats, default='0.0,0.5', help='')
@@ -759,7 +757,7 @@ if __name__ == '__main__':
     parser.add_argument('--neg_beta', type=_list_to_floats, default='-10.0,20.0', help='')
     parser.add_argument('--erase', type=bool, default=True, help='')
     parser.add_argument('--max_erase_prob', type=float, default=0.5, help='')
-    parser.add_argument('--erase_num', type=_list_to_ints, default='1,4', help='')
+    parser.add_argument('--erase_num', type=_list_to_ints, default='1,2', help='')
     parser.add_argument('--erase_size', type=_list_to_floats, default='0.3,0.6', help='')
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')

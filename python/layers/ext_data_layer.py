@@ -87,41 +87,44 @@ class ExtDataLayer(caffe.Layer):
         difficulty = np.minimum(self.max_difficulty_, difficulty)
 
         if self.dither_:
-            middle_aspect = 0.5 * (self.aspect_ratio_limits_[0] + self.aspect_ratio_limits_[1])
-            min_aspect = middle_aspect - (middle_aspect - self.aspect_ratio_limits_[0]) * difficulty
-            max_aspect = middle_aspect + (self.aspect_ratio_limits_[1] - middle_aspect) * difficulty
-            crop_aspect = np.random.uniform(min_aspect, max_aspect)
-            crop_height = trg_height
-            crop_width = int(float(crop_height) / crop_aspect)
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.max_dither_prob_, difficulty):
+                middle_aspect = 0.5 * (self.aspect_ratio_limits_[0] + self.aspect_ratio_limits_[1])
+                min_aspect = middle_aspect - (middle_aspect - self.aspect_ratio_limits_[0]) * difficulty
+                max_aspect = middle_aspect + (self.aspect_ratio_limits_[1] - middle_aspect) * difficulty
+                crop_aspect = np.random.uniform(min_aspect, max_aspect)
+                crop_height = trg_height
+                crop_width = int(float(crop_height) / crop_aspect)
 
-            border_size = np.random.uniform(0.0, float(self.max_border_size_) * difficulty)
-            region_height = int(crop_height + 2.0 * border_size)
-            region_width = int(crop_width + 2.0 * border_size)
+                border_size = np.random.uniform(0.0, float(self.max_border_size_) * difficulty)
+                region_height = int(crop_height + 2.0 * border_size)
+                region_width = int(crop_width + 2.0 * border_size)
 
-            src_aspect_ratio = float(augmented_img.shape[0]) / float(augmented_img.shape[1])
-            trg_aspect_ratio = float(region_height) / float(region_width)
+                src_aspect_ratio = float(augmented_img.shape[0]) / float(augmented_img.shape[1])
+                trg_aspect_ratio = float(region_height) / float(region_width)
 
-            if src_aspect_ratio > trg_aspect_ratio:
-                width = region_width
-                height = int(float(width) * src_aspect_ratio)
+                if src_aspect_ratio > trg_aspect_ratio:
+                    width = region_width
+                    height = int(float(width) * src_aspect_ratio)
+                else:
+                    height = region_height
+                    width = int(float(height) / src_aspect_ratio)
+                augmented_img = cv2.resize(augmented_img, (width, height))
+
+                crop_height = np.minimum(crop_height, augmented_img.shape[0])
+                crop_width = np.minimum(crop_width, augmented_img.shape[1])
+
+                height_diff = augmented_img.shape[0] - crop_height
+                width_diff = augmented_img.shape[1] - crop_width
+
+                left_edge = np.random.randint(0, width_diff + 1)
+                right_edge = left_edge + crop_width
+                top_edge = np.random.randint(0, height_diff + 1)
+                bottom_edge = top_edge + crop_height
+
+                augmented_img = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
+                augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
             else:
-                height = region_height
-                width = int(float(height) / src_aspect_ratio)
-            augmented_img = cv2.resize(augmented_img, (width, height))
-
-            crop_height = np.minimum(crop_height, augmented_img.shape[0])
-            crop_width = np.minimum(crop_width, augmented_img.shape[1])
-
-            height_diff = augmented_img.shape[0] - crop_height
-            width_diff = augmented_img.shape[1] - crop_width
-
-            left_edge = np.random.randint(0, width_diff + 1)
-            right_edge = left_edge + crop_width
-            top_edge = np.random.randint(0, height_diff + 1)
-            bottom_edge = top_edge + crop_height
-
-            augmented_img = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
-            augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
+                augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
         if self.blur_:
             if np.random.uniform(0.0, 1.0) < np.minimum(self.max_blur_prob_, difficulty):
@@ -247,7 +250,7 @@ class ExtDataLayer(caffe.Layer):
         self.gamma_ = layer_params['gamma'] if 'gamma' in layer_params else False
         if self.gamma_:
             self.delta_ = layer_params['delta'] if 'delta' in layer_params else 0.01
-            self.max_gamma_prob_ = layer_params['max_gamma_prob'] if 'max_gamma_prob' in layer_params else 0.9
+            self.max_gamma_prob_ = layer_params['max_gamma_prob'] if 'max_gamma_prob' in layer_params else 0.5
             assert 0.0 < self.delta_ < 1.0
             assert 0.0 <= self.max_gamma_prob_ <= 1.0
 
@@ -258,7 +261,7 @@ class ExtDataLayer(caffe.Layer):
             self.pos_beta_ = layer_params['pos_beta'] if 'pos_beta' in layer_params else [-100.0, 50.0]
             self.neg_alpha_ = layer_params['neg_alpha'] if 'neg_alpha' in layer_params else [0.9, 1.5]
             self.neg_beta_ = layer_params['neg_beta'] if 'neg_beta' in layer_params else [-20.0, 50.0]
-            self.max_brightness_prob_ = layer_params['max_brightness_prob'] if 'max_brightness_prob' in layer_params else 0.8
+            self.max_brightness_prob_ = layer_params['max_brightness_prob'] if 'max_brightness_prob' in layer_params else 0.5
             assert 0.0 <= self.max_brightness_prob_ <= 1.0
 
         self.dither_ = layer_params['dither'] if 'dither' in layer_params else False
@@ -266,6 +269,8 @@ class ExtDataLayer(caffe.Layer):
             self.aspect_ratio_limits_ = layer_params['aspect_ratio_limits']\
                 if 'aspect_ratio_limits' in layer_params else [1.8, 3.2]
             self.max_border_size_ = layer_params['max_border_size'] if 'max_border_size' in layer_params else 6
+            self.max_dither_prob_ = layer_params['max_dither_prob'] if 'max_dither_prob' in layer_params else 0.5
+            assert 0.0 <= self.max_dither_prob_ <= 1.0
             assert 0.0 < self.aspect_ratio_limits_[0] < self.aspect_ratio_limits_[1]
             assert 1 < self.max_border_size_
 
@@ -274,7 +279,7 @@ class ExtDataLayer(caffe.Layer):
             self.erase_num_ = layer_params['erase_num'] if 'erase_num' in layer_params else [1, 6]
             self.erase_size_ = layer_params['erase_size'] if 'erase_size' in layer_params else [0.2, 0.4]
             self.erase_border_ = layer_params['erase_border'] if 'erase_border' in layer_params else [0.1, 0.9]
-            self.max_erase_prob_ = layer_params['max_erase_prob'] if 'max_erase_prob' in layer_params else 0.8
+            self.max_erase_prob_ = layer_params['max_erase_prob'] if 'max_erase_prob' in layer_params else 0.5
             assert 0.0 <= self.max_erase_prob_ <= 1.0
             assert 0 < self.erase_num_[0] < self.erase_num_[1]
             assert 0.0 < self.erase_size_[0] < self.erase_size_[1] < 1.0
