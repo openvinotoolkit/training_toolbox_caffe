@@ -23,17 +23,23 @@ class CenterLossLayer(caffe.Layer):
         num_centers = bottom[2].num
 
         self.sample_id_by_label = {}
-        intra_class_dist = 0.0
+        sum_intra_class_dist = 0.0
+        max_intra_class_dist = 0.0
         for sample_id in xrange(batch_size):
             label = labels[sample_id]
             assert 0 <= label < num_centers
 
             self.sample_id_by_label[label] = self.sample_id_by_label.get(label, []) + [sample_id]
 
-            intra_class_dist += 1.0 - np.sum(embeddings[sample_id] * centers[label])
+            dist = 1.0 - np.sum(embeddings[sample_id] * centers[label])
+            sum_intra_class_dist += dist
+            max_intra_class_dist = max(max_intra_class_dist, dist)
 
-        loss = intra_class_dist / float(batch_size)
+        loss = sum_intra_class_dist / float(batch_size)
         top[0].data[...] = loss
+
+        if len(top) == 2:
+            top[1].data[...] = max_intra_class_dist
 
     def backward(self, top, propagate_down, bottom):
         embeddings = np.array(bottom[0].data).astype(np.float32)
@@ -62,3 +68,6 @@ class CenterLossLayer(caffe.Layer):
 
     def reshape(self, bottom, top):
         top[0].reshape(1)
+
+        if len(top) == 2:
+            top[1].reshape(1)

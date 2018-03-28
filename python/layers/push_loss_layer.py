@@ -26,11 +26,11 @@ class PushLossLayer(caffe.Layer):
         assert len(labels.shape) == 1
         assert embeddings.shape[0] == labels.shape[0]
 
-        all_pairs = (labels.reshape([-1, 1]) != labels.reshape([1, -1])).astype(np.float32)
+        all_pairs = labels.reshape([-1, 1]) != labels.reshape([1, -1])
 
         distances = 1.0 - np.matmul(embeddings, np.transpose(embeddings))
         losses = self.margin_ - distances
-        self.valid_pairs = all_pairs * (losses > 0.0)
+        self.valid_pairs = (all_pairs * (losses > 0.0)).astype(np.float32)
         self.num_valid_pairs = np.sum(self.valid_pairs)
 
         if self.num_valid_pairs > 0.0:
@@ -40,9 +40,8 @@ class PushLossLayer(caffe.Layer):
             top[0].data[...] = loss
 
             if len(top) == 2:
-                valid_distances = distances * all_pairs
-                inter_class_dist = np.sum(valid_distances) / np.sum(all_pairs)
-                top[1].data[...] = inter_class_dist
+                min_inter_class_dist = np.min(distances[all_pairs])
+                top[1].data[...] = min_inter_class_dist
         else:
             top[0].data[...] = 0.0
 

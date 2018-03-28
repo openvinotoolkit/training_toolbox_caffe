@@ -142,13 +142,13 @@ void InnerProductLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
         caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
                               K_, N_, M_,
                               (Dtype)1., bottom_data, top_diff,
-                              (Dtype)0., weight_diff);
+                              (Dtype)1., weight_diff);
       }
       else {
         caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
                               N_, K_, M_,
                               (Dtype)1., top_diff, bottom_data,
-                              (Dtype)0., weight_diff);
+                              (Dtype)1., weight_diff);
       }
     }
     else {
