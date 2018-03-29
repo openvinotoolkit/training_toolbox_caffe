@@ -52,7 +52,7 @@ class PushLossLayer(caffe.Layer):
             if self.num_valid_pairs > 0.0:
                 embeddings = np.array(bottom[0].data).astype(np.float32)
 
-                factor = 1.0 / float(self.num_valid_pairs)
+                factor = top[0].diff[0] / float(self.num_valid_pairs)
                 for i in xrange(bottom[0].num):
                     for j in xrange(i + 1, bottom[0].num):
                         if self.valid_pairs[i, j]:

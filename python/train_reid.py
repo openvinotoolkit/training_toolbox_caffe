@@ -477,12 +477,13 @@ class SolverWrapper:
 
             return cmc[0]
 
-    def _estimate_classification_losses(self):
+    def _inference_test_net(self):
         self._log('Estimating losses...')
         net_output = self.solver.test_nets[0].forward_all(
             data=self.image_blobs, label=self.label_blobs)
         losses = net_output[self.param.output_name]
-        return losses
+        embeddings = net_output[self.param.embd_output_name]
+        return losses, embeddings
 
     def _estimate_embeddings(self):
         self._log('Estimating embeddings...')
@@ -669,7 +670,7 @@ class SolverWrapper:
                 triplets = self._extract_triplets(embeddings, self.label_blobs)
                 hard_sample_ids = self._reorder_triplet_samples(triplets)
             else:
-                loss_values = self._estimate_classification_losses()
+                loss_values, embeddings = self._inference_test_net()
                 hard_sample_ids = self._find_hardest_samples(loss_values)
 
             hard_sample_labels = data_labels[hard_sample_ids]
