@@ -12,6 +12,7 @@ void GRNLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   GRNParameter param = this->layer_param().grn_param();
   bias_ = param.bias();
   CHECK_GE(bias_, 0.0) << "Bias must be >=0.";
+  dummy_backward_ = param.dummy_backward();
 }
 
 template <typename Dtype>
@@ -70,8 +71,15 @@ void GRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   }
 
   const Dtype* top_diff = top[0]->cpu_diff();
-  const Dtype* top_data = top[0]->cpu_data();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+
+  caffe_copy(top[0]->count(), top_diff, bottom_diff);
+
+  if (dummy_backward_) {
+    return;
+  }
+
+  const Dtype* top_data = top[0]->cpu_data();
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* norm_data = norm_.mutable_cpu_data();
   Dtype* temp_dot_data = temp_dot_.mutable_cpu_data();
@@ -80,7 +88,7 @@ void GRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   int channels = top[0]->channels();
   int dim = top[0]->count() / top[0]->num();
   int spatial_dim = top[0]->height() * top[0]->width();
-  caffe_copy(top[0]->count(), top_diff, bottom_diff);
+  
   for (int i = 0; i < num; ++i) {
     for (int k = 0; k < spatial_dim; ++k) {
       temp_dot_data[i * spatial_dim + k] = caffe_cpu_strided_dot<Dtype>(channels,

@@ -100,16 +100,23 @@ void GRNLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   }
 
   const Dtype* top_diff = top[0]->gpu_diff();
-  const Dtype* top_data = top[0]->gpu_data();
   Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
+
+  caffe_copy(top[0]->count(), top_diff, bottom_diff);
+  
+  if (dummy_backward_) {
+    return;
+  }  
+
+  const Dtype* top_data = top[0]->gpu_data();
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* norm_data = norm_.mutable_gpu_data();
   Dtype* temp_dot_data = temp_dot_.mutable_gpu_data();
-  Dtype* temp_data = square_.mutable_gpu_data();//just reuse the square_
+  Dtype* temp_data = square_.mutable_gpu_data();  //just reuse the square_
   int num = top[0]->num();
   int channels = top[0]->channels();
   int spatial_dim = top[0]->height() * top[0]->width();
-  caffe_copy(top[0]->count(), top_diff, bottom_diff);
+
   caffe_copy(top[0]->count(), bottom_data, temp_data);
 
   // b_diff = t_diff / norm - dot(t_diff, t_data) / (norm)^2 * bottom_data

@@ -38,6 +38,8 @@ class GRNLayer : public Layer<Dtype> {
 
   /// bias is used to prevent from zero division
   Dtype bias_;
+  /// dummy_backward is used to prevent from the real gradint computation
+  bool dummy_backward_;
   /// sum_multiplier is used to carry out sum using BLAS 1 x ch x 1 x 1
   Blob<Dtype> sum_multiplier_;
   /// square result n X ch x h x w
