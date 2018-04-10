@@ -126,6 +126,9 @@ class SolverWrapper:
 
         self.sample_iter = None
 
+        train_layer_names = list(self.solver.net._layer_names)
+        self.train_layer_idx = {name: i for i, name in enumerate(train_layer_names)}
+
     @staticmethod
     def _parse_data_format(format_name):
         if format_name == 'MARS':
@@ -202,11 +205,12 @@ class SolverWrapper:
         self.num_images_ = self.param.num_images
         self.image_size_ = self.param.image_size
 
+        self.num_labels = self.data_sampler_.get_num_labels()
         if self.param.label_fraction > 0.0:
-            local_num_labels = int(self.param.label_fraction * self.data_sampler_.get_num_labels())
-            self.num_samples = local_num_labels * self.num_images_
+            self.local_num_labels = int(self.param.label_fraction * float(self.num_labels))
         else:
-            self.num_samples = self.data_sampler_.get_num_labels() * self.num_images_
+            self.local_num_labels = self.num_labels
+        self.num_samples = self.local_num_labels * self.num_images_
 
         self._reset_states()
 
@@ -624,12 +628,19 @@ class SolverWrapper:
 
         return sample_ids
 
-    def _train(self, ids, shuffle):
+    def _train(self, ids, shuffle, centers=None):
         assert len(ids) >= self.virtual_batch_size
         assert len(ids) % self.virtual_batch_size == 0
 
-        self.solver.net.layers[0].update_data(self.image_blobs, self.label_blobs)
-        self.solver.net.layers[0].update_indices(ids, shuffle=shuffle)
+        data_layer = self.solver.net.layers[self.train_layer_idx[self.param.input_name]]
+        data_layer.update_data(self.image_blobs, self.label_blobs)
+        data_layer.update_indices(ids, shuffle=shuffle)
+
+        if centers is not None:
+            assert self.param.centers_name in self.solver.net.blobs.keys()
+
+            centers_blob = self.solver.net.blobs[self.param.centers_name]
+            centers_blob.data[...] = centers
 
         num_train_iter = len(ids) / self.virtual_batch_size
         for local_train_iter in xrange(num_train_iter):
@@ -644,9 +655,46 @@ class SolverWrapper:
     def _save_state(self):
         self.solver.snapshot()
 
+    def _estimate_centers(self, embeddings, labels):
+        assert len(embeddings) == len(labels)
+        assert len(embeddings.shape) == 2
+        assert len(labels.shape) == 1
+
+        unique_labels = np.unique(labels.astype(np.int32))
+        assert len(unique_labels) == self.local_num_labels
+
+        centers = np.zeros([self.num_labels, embeddings.shape[1]], dtype=np.float32)
+        for i in trange(self.local_num_labels, desc='Estimating centers'):
+            label = unique_labels[i]
+            assert 0 <= label < self.num_labels
+
+            points = embeddings[labels == float(label)].reshape([-1, embeddings.shape[1]])
+            center = np.mean(points, axis=0)
+            centers[label, ...] = center
+
+        norms = np.sqrt(np.sum(np.square(centers), axis=1, keepdims=True) + 1e-9)
+        norm_centers = centers / norms
+
+        return norm_centers
+
+    def _print_centers_info(self, old_centers, new_centers):
+        if old_centers is None or new_centers is None:
+            return
+
+        assert old_centers.shape == new_centers.shape
+        assert len(old_centers.shape) == 2
+
+        cos_diff = 1.0 - np.sum(old_centers * new_centers, axis=1)
+
+        self._log('Centers shift. Min: {} Mean: {} Max: {} Std: {}'.format(np.min(cos_diff),
+                                                                           np.mean(cos_diff),
+                                                                           np.max(cos_diff),
+                                                                           np.std(cos_diff)), True)
+
     def _solve(self):
         best_rank1_acc = 0.0
         best_iter = 0
+        centers = None
 
         while self.train_iter < self.solver.param.max_iter:
             self._log('MetaIter #{}'.format(self.train_iter), True, True)
@@ -673,12 +721,25 @@ class SolverWrapper:
                 loss_values, embeddings = self._inference_test_net()
                 hard_sample_ids = self._find_hardest_samples(loss_values)
 
+                if self.param.centroids:
+                    new_centers = self._estimate_centers(embeddings, self.label_blobs)
+
+                    if centers is None:
+                        centers = np.copy(new_centers)
+                    else:
+                        self._print_centers_info(centers, new_centers)
+
+                        centers = self.param.centers_alpha * centers + \
+                                  (1.0 - self.param.centers_alpha) * new_centers
+                        norms = np.sqrt(np.sum(np.square(centers), axis=1, keepdims=True) + 1e-9)
+                        centers /= norms
+
             hard_sample_labels = data_labels[hard_sample_ids]
             image_name = 'after_{:06}.png'.format(self.train_iter)
             image_path = join(self.param.working_dir, 'logs', 'labels', image_name)
             self._save_hist(hard_sample_labels, image_path)
 
-            self._train(hard_sample_ids, shuffle=not self.param.triplet)
+            self._train(hard_sample_ids, shuffle=not self.param.triplet, centers=centers)
 
             self._save_state()
             self._log('Current best model #{}: {} rank@1 accuracy'.format(best_iter, best_rank1_acc), True, True)
@@ -762,6 +823,7 @@ if __name__ == '__main__':
     parser.add_argument('--erase_size', type=_list_to_floats, default='0.3,0.6', help='')
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')
+    parser.add_argument('--centers_name', default='centers/embd/norm', help='')
     parser.add_argument('--output_name', default='softmax_loss', help='')
     parser.add_argument('--embd_output_name', default='embd_out', help='')
     parser.add_argument('--sampler_fraction', type=float, default=0.5, help='')
@@ -777,6 +839,8 @@ if __name__ == '__main__':
     parser.add_argument('--format', dest='format', type=str,
                         choices=['MARS', 'Market', 'Duke', 'Datatang', 'Viper'], default='Datatang',
                         help='Name format according to dataset name')
+    parser.add_argument('--centroids', action='store_true', help='Estimate centers of same-class embeddings')
+    parser.add_argument('--centers_alpha', type=float, default=0.5, help='')
     args = parser.parse_args()
 
     assert exists(args.data_file)
