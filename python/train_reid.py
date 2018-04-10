@@ -840,7 +840,7 @@ if __name__ == '__main__':
                         choices=['MARS', 'Market', 'Duke', 'Datatang', 'Viper'], default='Datatang',
                         help='Name format according to dataset name')
     parser.add_argument('--centroids', action='store_true', help='Estimate centers of same-class embeddings')
-    parser.add_argument('--centers_alpha', type=float, default=0.5, help='')
+    parser.add_argument('--centers_alpha', type=float, default=0.9, help='')
     args = parser.parse_args()
 
     assert exists(args.data_file)

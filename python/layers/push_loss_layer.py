@@ -28,19 +28,20 @@ class PushLossLayer(caffe.Layer):
         assert embeddings.shape[0] == labels.shape[0]
 
         all_pairs = labels.reshape([-1, 1]) != labels.reshape([1, -1])
+        all_pairs *= np.tri(*all_pairs.shape, k=-1, dtype=np.bool)
 
         self.distances = 1.0 - np.matmul(embeddings, np.transpose(embeddings))
 
         if self.soft_:
             losses = np.log(1.0 + np.exp(np.negative(self.distances)))
-            self.valid_pairs = all_pairs.astype(np.float32)
+            self.valid_pairs = all_pairs
         else:
             losses = self.margin_ - self.distances
-            self.valid_pairs = (all_pairs * (losses > 0.0)).astype(np.float32)
+            self.valid_pairs = all_pairs * (losses > 0.0)
         self.num_valid_pairs = np.sum(self.valid_pairs)
 
         if self.num_valid_pairs > 0.0:
-            valid_losses = losses * self.valid_pairs
+            valid_losses = losses * self.valid_pairs.astype(np.float32)
 
             loss = np.sum(valid_losses) / float(self.num_valid_pairs)
             top[0].data[...] = loss
@@ -61,14 +62,14 @@ class PushLossLayer(caffe.Layer):
                 factor = top[0].diff[0] / float(self.num_valid_pairs)
                 if self.soft_:
                     for i in xrange(bottom[0].num):
-                        for j in xrange(i + 1, bottom[0].num):
+                        for j in xrange(i):
                             if self.valid_pairs[i, j]:
-                                scale = 1.0 / (1.0 + np.exp(-self.distances[i, j]))
+                                scale = 1.0 / (1.0 + np.exp(self.distances[i, j]))
                                 embeddings_diff[i] += factor * scale * embeddings[j]
                                 embeddings_diff[j] += factor * scale * embeddings[i]
                 else:
                     for i in xrange(bottom[0].num):
-                        for j in xrange(i + 1, bottom[0].num):
+                        for j in xrange(i):
                             if self.valid_pairs[i, j]:
                                 embeddings_diff[i] += factor * embeddings[j]
                                 embeddings_diff[j] += factor * embeddings[i]
