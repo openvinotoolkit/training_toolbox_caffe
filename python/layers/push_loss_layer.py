@@ -8,6 +8,7 @@ class PushLossLayer(caffe.Layer):
         layer_params = yaml.load(param_str)
 
         self.margin_ = float(layer_params['margin']) if 'margin' in layer_params else 0.2
+        self.soft_ = float(layer_params['soft']) if 'soft' in layer_params else False
 
     def setup(self, bottom, top):
         self._load_params(self.param_str)
@@ -28,9 +29,14 @@ class PushLossLayer(caffe.Layer):
 
         all_pairs = labels.reshape([-1, 1]) != labels.reshape([1, -1])
 
-        distances = 1.0 - np.matmul(embeddings, np.transpose(embeddings))
-        losses = self.margin_ - distances
-        self.valid_pairs = (all_pairs * (losses > 0.0)).astype(np.float32)
+        self.distances = 1.0 - np.matmul(embeddings, np.transpose(embeddings))
+
+        if self.soft_:
+            losses = np.log(1.0 + np.exp(np.negative(self.distances)))
+            self.valid_pairs = all_pairs.astype(np.float32)
+        else:
+            losses = self.margin_ - self.distances
+            self.valid_pairs = (all_pairs * (losses > 0.0)).astype(np.float32)
         self.num_valid_pairs = np.sum(self.valid_pairs)
 
         if self.num_valid_pairs > 0.0:
@@ -40,7 +46,7 @@ class PushLossLayer(caffe.Layer):
             top[0].data[...] = loss
 
             if len(top) == 2:
-                min_inter_class_dist = np.min(distances[all_pairs])
+                min_inter_class_dist = np.min(self.distances[all_pairs])
                 top[1].data[...] = min_inter_class_dist
         else:
             top[0].data[...] = 0.0
@@ -53,11 +59,19 @@ class PushLossLayer(caffe.Layer):
                 embeddings = np.array(bottom[0].data).astype(np.float32)
 
                 factor = top[0].diff[0] / float(self.num_valid_pairs)
-                for i in xrange(bottom[0].num):
-                    for j in xrange(i + 1, bottom[0].num):
-                        if self.valid_pairs[i, j]:
-                            embeddings_diff[i] += factor * embeddings[j]
-                            embeddings_diff[j] += factor * embeddings[i]
+                if self.soft_:
+                    for i in xrange(bottom[0].num):
+                        for j in xrange(i + 1, bottom[0].num):
+                            if self.valid_pairs[i, j]:
+                                scale = 1.0 / (1.0 + np.exp(-self.distances[i, j]))
+                                embeddings_diff[i] += factor * scale * embeddings[j]
+                                embeddings_diff[j] += factor * scale * embeddings[i]
+                else:
+                    for i in xrange(bottom[0].num):
+                        for j in xrange(i + 1, bottom[0].num):
+                            if self.valid_pairs[i, j]:
+                                embeddings_diff[i] += factor * embeddings[j]
+                                embeddings_diff[j] += factor * embeddings[i]
 
             bottom[0].diff[...] = embeddings_diff
 
