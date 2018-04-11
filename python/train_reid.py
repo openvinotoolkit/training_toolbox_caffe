@@ -677,19 +677,22 @@ class SolverWrapper:
 
         return norm_centers
 
-    def _print_centers_info(self, old_centers, new_centers):
+    def _centers_info(self, old_centers, new_centers):
         if old_centers is None or new_centers is None:
             return
 
         assert old_centers.shape == new_centers.shape
         assert len(old_centers.shape) == 2
 
-        cos_diff = 1.0 - np.sum(old_centers * new_centers, axis=1)
+        cos_diff = (1.0 - np.sum(old_centers * new_centers, axis=1)).reshape([-1])
 
         self._log('Centers shift. Min: {} Mean: {} Max: {} Std: {}'.format(np.min(cos_diff),
                                                                            np.mean(cos_diff),
                                                                            np.max(cos_diff),
                                                                            np.std(cos_diff)), True)
+        image_name = 'diff_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'centers', image_name)
+        self._save_hist(cos_diff, image_path)
 
     def _solve(self):
         best_rank1_acc = 0.0
@@ -727,7 +730,7 @@ class SolverWrapper:
                     if centers is None:
                         centers = np.copy(new_centers)
                     else:
-                        self._print_centers_info(centers, new_centers)
+                        self._centers_info(centers, new_centers)
 
                         centers = self.param.centers_alpha * centers + \
                                   (1.0 - self.param.centers_alpha) * new_centers
@@ -765,6 +768,7 @@ def prepare_directory(working_dir_path):
         makedirs(working_dir_path)
         makedirs(join(working_dir_path, 'logs', 'losses'))
         makedirs(join(working_dir_path, 'logs', 'labels'))
+        makedirs(join(working_dir_path, 'logs', 'centers'))
         makedirs(join(working_dir_path, 'logs', 'caffe'))
         makedirs(join(working_dir_path, 'snapshots'))
     else:
@@ -773,6 +777,9 @@ def prepare_directory(working_dir_path):
 
         if not exists(join(working_dir_path, 'logs', 'labels')):
             makedirs(join(working_dir_path, 'logs', 'labels'))
+
+        if not exists(join(working_dir_path, 'logs', 'centers')):
+            makedirs(join(working_dir_path, 'logs', 'centers'))
 
         if not exists(join(working_dir_path, 'logs', 'caffe')):
             makedirs(join(working_dir_path, 'logs', 'caffe'))

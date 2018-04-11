@@ -40,7 +40,7 @@ class PushLossLayer(caffe.Layer):
             self.valid_pairs = all_pairs * (losses > 0.0)
         self.num_valid_pairs = np.sum(self.valid_pairs)
 
-        if self.num_valid_pairs > 0.0:
+        if int(self.num_valid_pairs) > 0:
             valid_losses = losses * self.valid_pairs.astype(np.float32)
 
             loss = np.sum(valid_losses) / float(self.num_valid_pairs)
@@ -56,7 +56,7 @@ class PushLossLayer(caffe.Layer):
         if propagate_down[0]:
             embeddings_diff = np.zeros(bottom[0].data.shape)
 
-            if self.num_valid_pairs > 0.0:
+            if int(self.num_valid_pairs) > 0:
                 embeddings = np.array(bottom[0].data).astype(np.float32)
 
                 factor = top[0].diff[0] / float(self.num_valid_pairs)
