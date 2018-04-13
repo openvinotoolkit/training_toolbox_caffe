@@ -702,10 +702,18 @@ class SolverWrapper:
         while self.train_iter < self.solver.param.max_iter:
             self._log('MetaIter #{}'.format(self.train_iter), True, True)
 
-            difficulty = float(self.train_iter) * float(self.param.max_difficulty) / float(
-                self.param.max_difficulty_iter)
+            difficulty =\
+                float(self.train_iter) * float(self.param.max_difficulty) / float(self.param.max_difficulty_iter)
             self.difficulty = np.minimum(self.param.max_difficulty, difficulty)
             self._log('Difficulty: {}'.format(self.difficulty), True)
+
+            if self.param.centroids:
+                old_centers_weight = np.maximum(self.param.min_centers_alpha,
+                                                self.param.max_centers_alpha * self.difficulty)
+                if self.train_iter < self.param.skip_first_center_updates:
+                    self._log('New centroids weight: {}'.format(1.0), True)
+                else:
+                    self._log('New centroids weight: {}'.format(1.0 - old_centers_weight), True)
 
             rank1_acc = self._test_model()
             if rank1_acc > best_rank1_acc:
@@ -727,13 +735,12 @@ class SolverWrapper:
                 if self.param.centroids:
                     new_centers = self._estimate_centers(embeddings, self.label_blobs)
 
-                    if centers is None:
+                    if centers is None or self.train_iter < self.param.skip_first_center_updates:
                         centers = np.copy(new_centers)
                     else:
                         self._centers_info(centers, new_centers)
 
-                        centers = self.param.centers_alpha * centers + \
-                                  (1.0 - self.param.centers_alpha) * new_centers
+                        centers = old_centers_weight * centers + (1.0 - old_centers_weight) * new_centers
                         norms = np.sqrt(np.sum(np.square(centers), axis=1, keepdims=True) + 1e-9)
                         centers /= norms
 
@@ -847,7 +854,9 @@ if __name__ == '__main__':
                         choices=['MARS', 'Market', 'Duke', 'Datatang', 'Viper'], default='Datatang',
                         help='Name format according to dataset name')
     parser.add_argument('--centroids', action='store_true', help='Estimate centers of same-class embeddings')
-    parser.add_argument('--centers_alpha', type=float, default=0.9, help='')
+    parser.add_argument('--min_centers_alpha', type=float, default=0.6, help='')
+    parser.add_argument('--max_centers_alpha', type=float, default=0.99, help='')
+    parser.add_argument('--skip_first_center_updates', type=int, default=1, help='')
     args = parser.parse_args()
 
     assert exists(args.data_file)
