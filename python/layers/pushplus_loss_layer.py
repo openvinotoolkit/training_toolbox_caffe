@@ -83,8 +83,27 @@ class PushPlusLossLayer(caffe.Layer):
                     for ref_id in xrange(embeddings.shape[0]):
                         if self.valid_mask[anchor_id, ref_id]:
                             embeddings_diff[anchor_id] += factor * (embeddings[ref_id] - anchor_center)
+                            embeddings_diff[ref_id] += factor * embeddings[anchor_id]
 
             bottom[0].diff[...] = embeddings_diff
+
+        if propagate_down[1]:
+            raise Exception('Cannot propagate down through the labels')
+
+        if propagate_down[2]:
+            centers_diff = np.zeros(bottom[2].data.shape)
+
+            if int(self.num_valid_triplets) > 0:
+                embeddings = np.array(bottom[0].data).astype(np.float32)
+                labels = np.array(bottom[1].data).astype(np.int32)
+
+                factor = top[0].diff[0] / float(self.num_valid_triplets)
+                for anchor_id in xrange(embeddings.shape[0]):
+                    label = labels[anchor_id]
+
+                    centers_diff[label] += -factor * embeddings[anchor_id]
+
+            bottom[2].diff[...] += centers_diff
 
     def reshape(self, bottom, top):
         top[0].reshape(1)

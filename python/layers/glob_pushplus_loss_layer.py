@@ -99,6 +99,12 @@ class GlobPushPlusLossLayer(caffe.Layer):
 
             bottom[0].diff[...] = embeddings_diff
 
+        if propagate_down[1]:
+            raise Exception('Cannot propagate down through the labels')
+
+        if propagate_down[2]:
+            raise Exception('Not implemented yet')
+
     def reshape(self, bottom, top):
         top[0].reshape(1)
 

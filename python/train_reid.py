@@ -854,7 +854,7 @@ if __name__ == '__main__':
                         choices=['MARS', 'Market', 'Duke', 'Datatang', 'Viper'], default='Datatang',
                         help='Name format according to dataset name')
     parser.add_argument('--centroids', action='store_true', help='Estimate centers of same-class embeddings')
-    parser.add_argument('--min_centers_alpha', type=float, default=0.6, help='')
+    parser.add_argument('--min_centers_alpha', type=float, default=0.8, help='')
     parser.add_argument('--max_centers_alpha', type=float, default=0.99, help='')
     parser.add_argument('--skip_first_center_updates', type=int, default=1, help='')
     args = parser.parse_args()

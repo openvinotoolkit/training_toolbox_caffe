@@ -7,7 +7,7 @@ class PushLossLayer(caffe.Layer):
     def _load_params(self, param_str):
         layer_params = yaml.load(param_str)
 
-        self.margin_ = float(layer_params['margin']) if 'margin' in layer_params else 0.2
+        self.margin_ = float(layer_params['margin']) if 'margin' in layer_params else 0.5
         self.soft_ = float(layer_params['soft']) if 'soft' in layer_params else False
 
     def setup(self, bottom, top):
