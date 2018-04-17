@@ -455,7 +455,10 @@ class SolverWrapper:
                 net_out = net.forward_all(data=data)
             else:
                 net_out = net.forward_all(data=data, label=label)
+
             embeddings = net_out[self.param.embd_output_name]
+            assert len(embeddings) == len(data)
+
             return embeddings
 
         if self.query_image_blobs is not None and\
@@ -487,6 +490,9 @@ class SolverWrapper:
             data=self.image_blobs, label=self.label_blobs)
         losses = net_output[self.param.output_name]
         embeddings = net_output[self.param.embd_output_name]
+
+        assert len(embeddings) == len(self.image_blobs)
+
         return losses, embeddings
 
     def _estimate_embeddings(self):
