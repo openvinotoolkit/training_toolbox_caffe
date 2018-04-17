@@ -179,15 +179,33 @@ class SolverWrapper:
         return image_blobs, label_blobs
 
     def _load_test_data(self):
+        def _extend_to(blobs):
+            blobs_tail = len(blobs) % self.virtual_batch_size
+            if blobs_tail == 0:
+                return blobs
+
+            extend_size = self.virtual_batch_size - blobs_tail
+            empty_blobs = np.zeros([extend_size] + list(blobs.shape[1:]), dtype=np.float32)
+
+            out_blobs = np.concatenate((blobs, empty_blobs), axis=0)
+
+            return out_blobs
+
         if exists(self.param.query_dir) and exists(self.param.gallery_dir):
             data_format = self._parse_data_format(self.param.format)
 
             self.query_image_blobs, self.query_label_blobs =\
                 self._parse_data(self.param.query_dir, data_format, 'query')
+            # self.num_query_samples = len(query_image_blobs)
+            # self.query_image_blobs = _extend_to(query_image_blobs)
+            # self.query_label_blobs = _extend_to(query_label_blobs)
             self.query_zero_label_blobs = np.zeros_like(self.query_label_blobs)
 
             self.gallery_image_blobs, self.gallery_label_blobs =\
                 self._parse_data(self.param.gallery_dir, data_format, 'gallery')
+            # self.num_gallery_samples = len(gallery_image_blobs)
+            # self.gallery_image_blobs = _extend_to(gallery_image_blobs)
+            # self.gallery_label_blobs = _extend_to(gallery_label_blobs)
             self.gallery_zero_label_blobs = np.zeros_like(self.gallery_label_blobs)
         else:
             self.query_image_blobs = None
@@ -488,10 +506,14 @@ class SolverWrapper:
         self._log('Estimating losses...')
         net_output = self.solver.test_nets[0].forward_all(
             data=self.image_blobs, label=self.label_blobs)
-        losses = net_output[self.param.output_name]
+        probs = net_output[self.param.output_name]
         embeddings = net_output[self.param.embd_output_name]
 
         assert len(embeddings) == len(self.image_blobs)
+        assert len(probs) == len(self.image_blobs)
+
+        losses = np.array([-np.log(probs[i, int(self.label_blobs[i])]) for i in xrange(probs.shape[0])],
+                          dtype=np.float32)
 
         return losses, embeddings
 
@@ -844,7 +866,7 @@ if __name__ == '__main__':
     parser.add_argument('--erase_border', type=_list_to_floats, default='0.1,0.9', help='')
     parser.add_argument('--input_name', default='data', help='')
     parser.add_argument('--centers_name', default='centers/embd/norm', help='')
-    parser.add_argument('--output_name', default='softmax_loss', help='')
+    parser.add_argument('--output_name', default='probs', help='')
     parser.add_argument('--embd_output_name', default='embd_out', help='')
     parser.add_argument('--sampler_fraction', type=float, default=0.5, help='')
     parser.add_argument('--default_sampler', action='store_true', help='Use default sampler.')
