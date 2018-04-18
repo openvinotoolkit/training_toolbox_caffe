@@ -4,7 +4,6 @@ import numpy as np
 import seaborn as sns
 import glob
 from argparse import ArgumentParser
-from multiprocessing import Process
 from os.path import exists, join, basename
 from collections import namedtuple
 from scipy.ndimage.filters import gaussian_filter
@@ -196,16 +195,10 @@ class SolverWrapper:
 
             self.query_image_blobs, self.query_label_blobs =\
                 self._parse_data(self.param.query_dir, data_format, 'query')
-            # self.num_query_samples = len(query_image_blobs)
-            # self.query_image_blobs = _extend_to(query_image_blobs)
-            # self.query_label_blobs = _extend_to(query_label_blobs)
             self.query_zero_label_blobs = np.zeros_like(self.query_label_blobs)
 
             self.gallery_image_blobs, self.gallery_label_blobs =\
                 self._parse_data(self.param.gallery_dir, data_format, 'gallery')
-            # self.num_gallery_samples = len(gallery_image_blobs)
-            # self.gallery_image_blobs = _extend_to(gallery_image_blobs)
-            # self.gallery_label_blobs = _extend_to(gallery_label_blobs)
             self.gallery_zero_label_blobs = np.zeros_like(self.gallery_label_blobs)
         else:
             self.query_image_blobs = None
@@ -396,8 +389,8 @@ class SolverWrapper:
         return data_ids, labels
 
     def _prepare_data(self, data_ids):
-        for i in trange(len(data_ids), desc='Collecting blobs'):
-            data_id = data_ids[i]
+        def _process(index):
+            data_id = data_ids[index]
             image, label = self.data_sampler_.get_image(data_id)
 
             augmented_image = self._augment(image, self.image_size_[0], self.image_size_[1])
@@ -405,8 +398,11 @@ class SolverWrapper:
             image_blob = self._image_to_blob(augmented_image, self.image_size_[0], self.image_size_[1])
             label_blob = float(label)
 
-            self.image_blobs[i] = image_blob
-            self.label_blobs[i] = label_blob
+            self.image_blobs[index] = image_blob
+            self.label_blobs[index] = label_blob
+
+        for i in trange(len(data_ids), desc='Collecting blobs'):
+            _process(i)
 
     @staticmethod
     def _calc_metrics(distances, gallery_labels, query_labels):
@@ -786,16 +782,9 @@ class SolverWrapper:
 
         self._release_log()
 
-    def _process(self):
+    def train(self):
         self._init()
         self._solve()
-
-    def train(self):
-        p = Process(target=self._process)
-        p.daemon = True
-
-        p.start()
-        p.join()
 
 
 def prepare_directory(working_dir_path):
