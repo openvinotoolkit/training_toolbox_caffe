@@ -93,7 +93,10 @@ class SolverWrapper:
         return blob
 
     def _reset_states(self):
-        self.train_iter = 0
+        if self.param.start_train_iter is None:
+            self.train_iter = 0
+        else:
+            self.train_iter = self.param.start_train_iter
 
         self.image_blobs = np.empty([self.num_samples, 3,
                                      self.image_size_[0], self.image_size_[1]], dtype=np.float32)
@@ -498,7 +501,7 @@ class SolverWrapper:
 
             return cmc[0]
 
-    def _inference_test_net(self):
+    def _inference_test_net(self, mixed_output=False):
         self._log('Estimating losses...')
         net_output = self.solver.test_nets[0].forward_all(
             data=self.image_blobs, label=self.label_blobs)
@@ -508,10 +511,20 @@ class SolverWrapper:
         assert len(embeddings) == len(self.image_blobs)
         assert len(probs) == len(self.image_blobs)
 
-        losses = np.array([-np.log(probs[i, int(self.label_blobs[i])]) for i in xrange(probs.shape[0])],
-                          dtype=np.float32)
+        softmax_losses = np.array([-np.log(probs[i, int(self.label_blobs[i])]) for i in xrange(probs.shape[0])],
+                                  dtype=np.float32)
+        predictions = np.argmax(probs, axis=1) == self.label_blobs.astype(np.int32)
 
-        return losses, embeddings
+        if mixed_output:
+            center_losses = net_output[self.param.center_output_name]
+            push_losses = net_output[self.param.push_output_name]
+
+            assert len(center_losses) == len(self.image_blobs)
+            assert len(push_losses) == len(self.image_blobs)
+
+            return softmax_losses, center_losses, push_losses, predictions, embeddings
+        else:
+            return softmax_losses, None, None, predictions, embeddings
 
     def _estimate_embeddings(self):
         self._log('Estimating embeddings...')
@@ -642,7 +655,7 @@ class SolverWrapper:
                           self.param.sampler_fraction), True)
 
         image_name = 'dist_{:06}.png'.format(self.train_iter)
-        image_path = join(self.param.working_dir, 'logs', 'losses', image_name)
+        image_path = join(self.param.working_dir, 'logs', 'losses', 'mixed', image_name)
         self._save_hist(samples, image_path, vline_value=filtered_indexed_samples[-1][0])
 
         values = [t[0] for t in filtered_indexed_samples]
@@ -718,6 +731,52 @@ class SolverWrapper:
         image_path = join(self.param.working_dir, 'logs', 'centers', image_name)
         self._save_hist(cos_diff, image_path)
 
+    def _mix_losses(self, softmax_losses, centers_losses, push_losses):
+        def _valid_mean(values):
+            mask = values > 0.0
+            if np.sum(mask) > 0:
+                return np.mean(values[mask])
+            else:
+                return 0.0
+
+        softmax_valid_mean = _valid_mean(softmax_losses)
+        center_valid_mean = _valid_mean(centers_losses)
+        push_valid_mean = _valid_mean(push_losses)
+
+        self._log('Softmax losses. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(softmax_losses), np.mean(softmax_losses),
+                          np.max(softmax_losses), np.std(softmax_losses)), True)
+
+        image_name = 'dist_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'losses', 'softmax', image_name)
+        self._save_hist(softmax_losses, image_path, vline_value=softmax_valid_mean)
+
+        image_name = 'dist_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'losses', 'center', image_name)
+        self._save_hist(centers_losses, image_path, vline_value=center_valid_mean)
+
+        self._log('Center losses. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(centers_losses), np.mean(centers_losses),
+                          np.max(centers_losses), np.std(centers_losses)), True)
+
+        image_name = 'dist_{:06}.png'.format(self.train_iter)
+        image_path = join(self.param.working_dir, 'logs', 'losses', 'push', image_name)
+        self._save_hist(push_losses, image_path, vline_value=push_valid_mean)
+
+        self._log('Push losses. Min: {} Mean: {} Max: {} Std: {}'
+                  .format(np.min(push_losses), np.mean(push_losses),
+                          np.max(push_losses), np.std(push_losses)), True)
+
+        softmax_weight = 1. / (3. * softmax_valid_mean)
+        center_weight = 1. / (3. * center_valid_mean)
+        push_weight = 1. / (3. * push_valid_mean)
+
+        mixed_losses = softmax_weight * softmax_losses +\
+                       center_weight * centers_losses +\
+                       push_weight * push_losses
+
+        return mixed_losses
+
     def _solve(self):
         best_rank1_acc = 0.0
         best_iter = 0
@@ -753,8 +812,17 @@ class SolverWrapper:
                 triplets = self._extract_triplets(embeddings, self.label_blobs)
                 hard_sample_ids = self._reorder_triplet_samples(triplets)
             else:
-                loss_values, embeddings = self._inference_test_net()
-                hard_sample_ids = self._find_hardest_samples(loss_values)
+                softmax_losses, centers_losses, push_losses, predictions, embeddings =\
+                    self._inference_test_net(mixed_output=args.mix_losses)
+
+                accuracy = float(np.sum(predictions)) / float(len(predictions))
+                self._log('All samples. Accuracy: {}'.format(accuracy), True)
+
+                if args.mix_losses:
+                    mixed_loss_values = self._mix_losses(softmax_losses, centers_losses, push_losses)
+                    hard_sample_ids = self._find_hardest_samples(mixed_loss_values)
+                else:
+                    hard_sample_ids = self._find_hardest_samples(softmax_losses)
 
                 if self.param.centroids:
                     new_centers = self._estimate_centers(embeddings, self.label_blobs)
@@ -790,14 +858,26 @@ class SolverWrapper:
 def prepare_directory(working_dir_path):
     if not exists(working_dir_path):
         makedirs(working_dir_path)
-        makedirs(join(working_dir_path, 'logs', 'losses'))
+        makedirs(join(working_dir_path, 'logs', 'losses', 'mixed'))
+        makedirs(join(working_dir_path, 'logs', 'losses', 'softmax'))
+        makedirs(join(working_dir_path, 'logs', 'losses', 'center'))
+        makedirs(join(working_dir_path, 'logs', 'losses', 'push'))
         makedirs(join(working_dir_path, 'logs', 'labels'))
         makedirs(join(working_dir_path, 'logs', 'centers'))
         makedirs(join(working_dir_path, 'logs', 'caffe'))
         makedirs(join(working_dir_path, 'snapshots'))
     else:
-        if not exists(join(working_dir_path, 'logs', 'losses')):
-            makedirs(join(working_dir_path, 'logs', 'losses'))
+        if not exists(join(working_dir_path, 'logs', 'losses', 'mixed')):
+            makedirs(join(working_dir_path, 'logs', 'losses', 'mixed'))
+
+        if not exists(join(working_dir_path, 'logs', 'losses', 'softmax')):
+            makedirs(join(working_dir_path, 'logs', 'losses', 'softmax'))
+
+        if not exists(join(working_dir_path, 'logs', 'losses', 'center')):
+            makedirs(join(working_dir_path, 'logs', 'losses', 'center'))
+
+        if not exists(join(working_dir_path, 'logs', 'losses', 'push')):
+            makedirs(join(working_dir_path, 'logs', 'losses', 'push'))
 
         if not exists(join(working_dir_path, 'logs', 'labels')):
             makedirs(join(working_dir_path, 'logs', 'labels'))
@@ -857,6 +937,8 @@ if __name__ == '__main__':
     parser.add_argument('--centers_name', default='centers/embd/norm', help='')
     parser.add_argument('--output_name', default='probs', help='')
     parser.add_argument('--embd_output_name', default='embd_out', help='')
+    parser.add_argument('--center_output_name', default='center_dist', help='')
+    parser.add_argument('--push_output_name', default='p2_max_dist', help='')
     parser.add_argument('--sampler_fraction', type=float, default=0.5, help='')
     parser.add_argument('--default_sampler', action='store_true', help='Use default sampler.')
     parser.add_argument('--triplet', action='store_true', help='Init to use with triplet loss.')
@@ -874,6 +956,8 @@ if __name__ == '__main__':
     parser.add_argument('--min_centers_alpha', type=float, default=0.8, help='')
     parser.add_argument('--max_centers_alpha', type=float, default=0.99, help='')
     parser.add_argument('--skip_first_center_updates', type=int, default=1, help='')
+    parser.add_argument('--mix_losses', action='store_true', help='')
+    parser.add_argument('--start_train_iter', type=int, default=None)
     args = parser.parse_args()
 
     assert exists(args.data_file)
