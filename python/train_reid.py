@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import seaborn as sns
 import glob
+import threading
 from argparse import ArgumentParser
 from os.path import exists, join, basename
 from collections import namedtuple
@@ -11,7 +12,6 @@ from tqdm import tqdm, trange
 from os import makedirs
 from time import strftime, localtime
 from operator import itemgetter
-
 
 SampleDesc = namedtuple('SampleDesc', 'path label')
 DataFormat = namedtuple('DataFormat', 'id_start_pos id_end_pos camera_start_pos camera_end_pos')
@@ -62,6 +62,17 @@ class SampleDataFromDisk:
 
     def get_label_by_id(self, label):
         return self._all_samples.get(label, SampleDesc(path=None, label=-1))
+
+
+class IterationThread(threading.Thread):
+    def __init__(self, body, start_index, end_index):
+        threading.Thread.__init__(self)
+        self.start_ = start_index
+        self.end_ = end_index
+        self.body_ = body
+
+    def run(self):
+        self.body_(self.start_, self.end_)
 
 
 class SolverWrapper:
@@ -196,11 +207,11 @@ class SolverWrapper:
         if exists(self.param.query_dir) and exists(self.param.gallery_dir):
             data_format = self._parse_data_format(self.param.format)
 
-            self.query_image_blobs, self.query_label_blobs =\
+            self.query_image_blobs, self.query_label_blobs = \
                 self._parse_data(self.param.query_dir, data_format, 'query')
             self.query_zero_label_blobs = np.zeros_like(self.query_label_blobs)
 
-            self.gallery_image_blobs, self.gallery_label_blobs =\
+            self.gallery_image_blobs, self.gallery_label_blobs = \
                 self._parse_data(self.param.gallery_dir, data_format, 'gallery')
             self.gallery_zero_label_blobs = np.zeros_like(self.gallery_label_blobs)
         else:
@@ -391,21 +402,43 @@ class SolverWrapper:
 
         return data_ids, labels
 
-    def _prepare_data(self, data_ids):
-        def _process(index):
-            data_id = data_ids[index]
-            image, label = self.data_sampler_.get_image(data_id)
+    def _prepare_data(self, data_ids, num_threads=10):
+        def _process(start, end):
+            for index in xrange(start, end):
+                data_id = data_ids[index]
+                image, label = self.data_sampler_.get_image(data_id)
 
-            augmented_image = self._augment(image, self.image_size_[0], self.image_size_[1])
+                augmented_image = self._augment(image, self.image_size_[0], self.image_size_[1])
 
-            image_blob = self._image_to_blob(augmented_image, self.image_size_[0], self.image_size_[1])
-            label_blob = float(label)
+                image_blob = self._image_to_blob(augmented_image, self.image_size_[0], self.image_size_[1])
+                label_blob = float(label)
 
-            self.image_blobs[index] = image_blob
-            self.label_blobs[index] = label_blob
+                self.image_blobs[index] = image_blob
+                self.label_blobs[index] = label_blob
 
-        for i in trange(len(data_ids), desc='Collecting blobs'):
-            _process(i)
+        self._log('Collecting blobs...')
+
+        chunks = [len(data_ids) / num_threads] * num_threads
+        rest_tasks = len(data_ids) % num_threads
+        if rest_tasks != 0:
+            for i in xrange(rest_tasks):
+                chunks[i] += 1
+        assert np.sum(chunks) == len(data_ids)
+
+        start_bias = 0
+        jobs = []
+        for i in xrange(num_threads):
+            start_index = start_bias
+            end_index = start_bias + chunks[i]
+            start_bias += chunks[i]
+
+            thread = IterationThread(_process, start_index, end_index)
+            jobs.append(thread)
+
+            thread.start()
+
+        for job in jobs:
+            job.join()
 
     @staticmethod
     def _calc_metrics(distances, gallery_labels, query_labels):
@@ -478,12 +511,12 @@ class SolverWrapper:
 
             return embeddings
 
-        if self.query_image_blobs is not None and\
-           self.query_label_blobs is not None and \
-           self.query_zero_label_blobs is not None and\
-           self.gallery_image_blobs is not None and\
-           self.gallery_label_blobs is not None and \
-           self.gallery_zero_label_blobs is not None:
+        if self.query_image_blobs is not None and \
+                        self.query_label_blobs is not None and \
+                        self.query_zero_label_blobs is not None and \
+                        self.gallery_image_blobs is not None and \
+                        self.gallery_label_blobs is not None and \
+                        self.gallery_zero_label_blobs is not None:
             self._log('Inference query...')
             query_embeddings = _embeddings(self.solver.test_nets[0],
                                            self.query_image_blobs,
@@ -771,8 +804,8 @@ class SolverWrapper:
         center_weight = 1. / (3. * center_valid_mean)
         push_weight = 1. / (3. * push_valid_mean)
 
-        mixed_losses = softmax_weight * softmax_losses +\
-                       center_weight * centers_losses +\
+        mixed_losses = softmax_weight * softmax_losses + \
+                       center_weight * centers_losses + \
                        push_weight * push_losses
 
         return mixed_losses
@@ -785,7 +818,7 @@ class SolverWrapper:
         while self.train_iter < self.solver.param.max_iter:
             self._log('MetaIter #{}'.format(self.train_iter), True, True)
 
-            difficulty =\
+            difficulty = \
                 float(self.train_iter) * float(self.param.max_difficulty) / float(self.param.max_difficulty_iter)
             self.difficulty = np.minimum(self.param.max_difficulty, difficulty)
             self._log('Difficulty: {}'.format(self.difficulty), True)
@@ -803,16 +836,16 @@ class SolverWrapper:
                 best_rank1_acc = rank1_acc
                 best_iter = self.train_iter
 
-            data_ids, data_labels =\
+            data_ids, data_labels = \
                 self._sample_data_ids()
-            self._prepare_data(data_ids)
+            self._prepare_data(data_ids, num_threads=self.param.load_num_threads)
 
             if self.param.triplet:
                 embeddings = self._estimate_embeddings()
                 triplets = self._extract_triplets(embeddings, self.label_blobs)
                 hard_sample_ids = self._reorder_triplet_samples(triplets)
             else:
-                softmax_losses, centers_losses, push_losses, predictions, embeddings =\
+                softmax_losses, centers_losses, push_losses, predictions, embeddings = \
                     self._inference_test_net(mixed_output=args.mix_losses)
 
                 accuracy = float(np.sum(predictions)) / float(len(predictions))
@@ -891,12 +924,15 @@ def prepare_directory(working_dir_path):
         if not exists(join(working_dir_path, 'snapshots')):
             makedirs(join(working_dir_path, 'snapshots'))
 
+
 if __name__ == '__main__':
     def _list_to_ints(s):
         return [int(v) for v in s.split(',')]
 
+
     def _list_to_floats(s):
         return [float(v) for v in s.split(',')]
+
 
     parser = ArgumentParser()
     parser.add_argument('--data_file', '-d', required=True, help='Path to .txt file with annotated images.')
@@ -958,6 +994,7 @@ if __name__ == '__main__':
     parser.add_argument('--skip_first_center_updates', type=int, default=1, help='')
     parser.add_argument('--mix_losses', action='store_true', help='')
     parser.add_argument('--start_train_iter', type=int, default=None)
+    parser.add_argument('--load_num_threads', type=int, default=10)
     args = parser.parse_args()
 
     assert exists(args.data_file)
