@@ -265,41 +265,44 @@ class SolverWrapper:
         augmented_img = img
 
         if self.param.dither:
-            middle_aspect = 0.5 * (self.param.aspect_ratio_limits[0] + self.param.aspect_ratio_limits[1])
-            min_aspect = middle_aspect - (middle_aspect - self.param.aspect_ratio_limits[0]) * self.difficulty
-            max_aspect = middle_aspect + (self.param.aspect_ratio_limits[1] - middle_aspect) * self.difficulty
-            crop_aspect = np.random.uniform(min_aspect, max_aspect)
-            crop_height = trg_height
-            crop_width = int(float(crop_height) / crop_aspect)
+            if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_dither_prob, self.difficulty):
+                middle_aspect = 0.5 * (self.param.aspect_ratio_limits[0] + self.param.aspect_ratio_limits[1])
+                min_aspect = middle_aspect - (middle_aspect - self.param.aspect_ratio_limits[0]) * self.difficulty
+                max_aspect = middle_aspect + (self.param.aspect_ratio_limits[1] - middle_aspect) * self.difficulty
+                crop_aspect = np.random.uniform(min_aspect, max_aspect)
+                crop_height = trg_height
+                crop_width = int(float(crop_height) / crop_aspect)
 
-            border_size = np.random.uniform(0.0, float(self.param.max_border_size) * self.difficulty)
-            region_height = int(crop_height + 2.0 * border_size)
-            region_width = int(crop_width + 2.0 * border_size)
+                border_size = np.random.uniform(0.0, float(self.param.max_border_size) * self.difficulty)
+                region_height = int(crop_height + 2.0 * border_size)
+                region_width = int(crop_width + 2.0 * border_size)
 
-            src_aspect_ratio = float(augmented_img.shape[0]) / float(augmented_img.shape[1])
-            trg_aspect_ratio = float(region_height) / float(region_width)
+                src_aspect_ratio = float(augmented_img.shape[0]) / float(augmented_img.shape[1])
+                trg_aspect_ratio = float(region_height) / float(region_width)
 
-            if src_aspect_ratio > trg_aspect_ratio:
-                width = region_width
-                height = int(float(width) * src_aspect_ratio)
+                if src_aspect_ratio > trg_aspect_ratio:
+                    width = region_width
+                    height = int(float(width) * src_aspect_ratio)
+                else:
+                    height = region_height
+                    width = int(float(height) / src_aspect_ratio)
+                augmented_img = cv2.resize(augmented_img, (width, height))
+
+                crop_height = np.minimum(crop_height, augmented_img.shape[0])
+                crop_width = np.minimum(crop_width, augmented_img.shape[1])
+
+                height_diff = augmented_img.shape[0] - crop_height
+                width_diff = augmented_img.shape[1] - crop_width
+
+                left_edge = np.random.randint(0, width_diff + 1)
+                right_edge = left_edge + crop_width
+                top_edge = np.random.randint(0, height_diff + 1)
+                bottom_edge = top_edge + crop_height
+
+                augmented_img = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
+                augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
             else:
-                height = region_height
-                width = int(float(height) / src_aspect_ratio)
-            augmented_img = cv2.resize(augmented_img, (width, height))
-
-            crop_height = np.minimum(crop_height, augmented_img.shape[0])
-            crop_width = np.minimum(crop_width, augmented_img.shape[1])
-
-            height_diff = augmented_img.shape[0] - crop_height
-            width_diff = augmented_img.shape[1] - crop_width
-
-            left_edge = np.random.randint(0, width_diff + 1)
-            right_edge = left_edge + crop_width
-            top_edge = np.random.randint(0, height_diff + 1)
-            bottom_edge = top_edge + crop_height
-
-            augmented_img = augmented_img[top_edge:bottom_edge, left_edge:right_edge]
-            augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
+                augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
         if self.param.blur:
             if np.random.uniform(0.0, 1.0) < np.minimum(self.param.max_blur_prob, self.difficulty):
@@ -818,9 +821,12 @@ class SolverWrapper:
         while self.train_iter < self.solver.param.max_iter:
             self._log('MetaIter #{}'.format(self.train_iter), True, True)
 
-            difficulty = \
-                float(self.train_iter) * float(self.param.max_difficulty) / float(self.param.max_difficulty_iter)
-            self.difficulty = np.minimum(self.param.max_difficulty, difficulty)
+            if self.param.max_difficulty_iter <= 0:
+                self.difficulty = self.param.max_difficulty
+            else:
+                difficulty = \
+                    float(self.train_iter) * float(self.param.max_difficulty) / float(self.param.max_difficulty_iter)
+                self.difficulty = np.minimum(self.param.max_difficulty, difficulty)
             self._log('Difficulty: {}'.format(self.difficulty), True)
 
             if self.param.centroids:
@@ -832,7 +838,7 @@ class SolverWrapper:
                     self._log('New centroids weight: {}'.format(1.0 - old_centers_weight), True)
 
             rank1_acc = self._test_model()
-            if rank1_acc > best_rank1_acc:
+            if rank1_acc >= best_rank1_acc:
                 best_rank1_acc = rank1_acc
                 best_iter = self.train_iter
 
@@ -948,8 +954,9 @@ if __name__ == '__main__':
     parser.add_argument('--max_difficulty', type=float, default=1.0, help='')
     parser.add_argument('--max_difficulty_iter', type=int, default=500, help='')
     parser.add_argument('--dither', type=bool, default=True, help='')
-    parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='2.0,3.0', help='')
-    parser.add_argument('--max_border_size', type=int, default=2, help='')
+    parser.add_argument('--max_dither_prob', type=float, default=0.5, help='')
+    parser.add_argument('--aspect_ratio_limits', type=_list_to_floats, default='1.8,3.2', help='')
+    parser.add_argument('--max_border_size', type=int, default=20, help='')
     parser.add_argument('--blur', type=bool, default=True, help='')
     parser.add_argument('--max_blur_prob', type=float, default=0.5, help='')
     parser.add_argument('--sigma_limits', type=_list_to_floats, default='0.0,0.5', help='')
@@ -961,9 +968,9 @@ if __name__ == '__main__':
     parser.add_argument('--max_brightness_prob', type=float, default=0.5, help='')
     parser.add_argument('--min_pos', type=float, default=128.0, help='')
     parser.add_argument('--pos_alpha', type=_list_to_floats, default='0.2,1.1', help='')
-    parser.add_argument('--pos_beta', type=_list_to_floats, default='-20.0,10.0', help='')
-    parser.add_argument('--neg_alpha', type=_list_to_floats, default='0.9,1.5', help='')
-    parser.add_argument('--neg_beta', type=_list_to_floats, default='-10.0,20.0', help='')
+    parser.add_argument('--pos_beta', type=_list_to_floats, default='-40.0,30.0', help='')
+    parser.add_argument('--neg_alpha', type=_list_to_floats, default='0.7,1.5', help='')
+    parser.add_argument('--neg_beta', type=_list_to_floats, default='-30.0,50.0', help='')
     parser.add_argument('--erase', type=bool, default=True, help='')
     parser.add_argument('--max_erase_prob', type=float, default=0.5, help='')
     parser.add_argument('--erase_num', type=_list_to_ints, default='1,2', help='')
