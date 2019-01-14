@@ -11,9 +11,9 @@ If you want to make a contribution please follow [the guideline](CONTRIBUTING.md
 ## Build instructions
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
   ```Shell
-  git clone https://github.com/opencv/training_toolbox_caffe.gitt caffe
+  git clone https://github.com/opencv/training_toolbox_caffe.git caffe
   cd caffe
-  git checkout smart_classroom_action_detection
+  git checkout develop
   ```
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
   ```Shell
