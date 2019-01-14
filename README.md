@@ -11,7 +11,7 @@ If you want to make a contribution please follow [the guideline](CONTRIBUTING.md
 ## Build instructions
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
   ```Shell
-  git clone https://gitlab-icv.inn.intel.com/Deep/caffe-shared.git caffe
+  git clone https://github.com/opencv/training_toolbox_caffe.gitt caffe
   cd caffe
   git checkout smart_classroom_action_detection
   ```
