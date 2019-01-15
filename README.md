@@ -93,7 +93,9 @@ The train procedure for action detection&recognition model consists of two consi
  4. [Conversation to MO-compatible format](#conversation-to-mo-compatible-format)
 
 **Note 1**: you can skip the first stage (training PD) and significantly speedup the second stage (training AR) by initializing your model from our distributed  `.caffemodel` snapshot:  `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/init_weights.caffemodel`
+
 **Note 2**: if you want to change the list of supported actions follow next steps:
+
  1. Change `ACTION_NAMES_MAP` dictionary in data layer `$CAFFE_ROOT/python/custom_layers/actions_data_layer.py` according your list of actions.
  2. Replace fields `valid_action_ids` and `valid_class_ids` to list of you valid action IDs for next layers in `$CAFFE_ROOT/models/person_detection_action_recognition/stage1__person_detector/train.prototxt` and `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/train.prototxt` files:
     - `data`
