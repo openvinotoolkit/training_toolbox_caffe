@@ -90,7 +90,7 @@ The train procedure for action detection&recognition model consists of two consi
  1. [Person Detection training (PD)](#person-detection-training)
  2. [Action Recognition training (AR)](#action-recognition-training)
  3. [Action Recognition model evaluation](#action-recognition-model-evaluation)
- 4. [Conversation to MO-compatible format](#conversation-to-mo-compatible-format)
+ 4. [Conversion to MO-compatible format](#conversion-to-mo-compatible-format)
 
 **Note 1**: you can skip the first stage (training PD) and significantly speedup the second stage (training AR) by initializing your model from our distributed  `.caffemodel` snapshot:  `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/init_weights.caffemodel`
 
@@ -109,7 +109,7 @@ The train procedure for action detection&recognition model consists of two consi
  3. Set a proper number of classes for each row marked with `# num_actions` in next files:
     - `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/train.prototxt`
     - `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt`
-    - `$CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/ie_conversation.prototxt`
+    - `$CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/ie_conversion.prototxt`
     - `$CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/inference.prototxt`
 
 ### Person Detection training
@@ -139,10 +139,10 @@ To evaluate the quality of trained Action Recognition model on your test data yo
 python $CAFFE_ROOT/python/action_metrics.py -t path_to_testing_tasks.txt -p $CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt -w action_detection_best_snapshot_path.caffemodel
  ```
 
-### Conversation to MO-compatible format
+### Conversion to MO-compatible format
 1. Run script to convert weights into MO-compatible format:
 ```
-    python $CAFFE_ROOT/python/convert_to_ie_compatible -m $CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/ie_conversation.prototxt -w "action_detection_snapshot_path.caffemodel" -o "action_detection_inference_path.caffemodel"
+    python $CAFFE_ROOT/python/convert_to_ie_compatible -m $CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/ie_conversion.prototxt -w "action_detection_snapshot_path.caffemodel" -o "action_detection_inference_path.caffemodel"
  ```
 where `action_detection_snapshot_path.caffemodel` is a selected snapshot of AR training procedure and `action_detection_inference_path.caffemodel` - path to save final model parameters.
 
