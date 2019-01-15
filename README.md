@@ -1,3 +1,4 @@
+
 # TTCF: Training Toolbox for Caffe
 
 
@@ -13,7 +14,7 @@ If you want to make a contribution please follow [the guideline](CONTRIBUTING.md
   ```Shell
   git clone https://github.com/opencv/training_toolbox_caffe.git caffe
   cd caffe
-  git checkout develop
+  git checkout master
   ```
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
   ```Shell
@@ -91,9 +92,10 @@ The train procedure for action detection&recognition model consists of two consi
  3. [Action Recognition model evaluation](#action-recognition-model-evaluation)
  4. [Conversation to MO-compatible format](#conversation-to-mo-compatible-format)
 
-Note: if you want to change the list of supported actions follow next steps:
+**Note 1**: you can skip the first stage (training PD) and significantly speedup the second stage (training AR) by initializing your model from our distributed  `.caffemodel` snapshot:  `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/init_weights.caffemodel`
+**Note 2**: if you want to change the list of supported actions follow next steps:
  1. Change `ACTION_NAMES_MAP` dictionary in data layer `$CAFFE_ROOT/python/custom_layers/actions_data_layer.py` according your list of actions.
- 2. Replace fields `valid_action_ids` and `valid_class_ids` to list of you valid action IDs for next layers in `$CAFFE_ROOT/model/person_detection_action_recognition/stage1__person_detector/train.prototxt` and `$CAFFE_ROOT/model/person_detection_action_recognition/stage2__action_regognition/train.prototxt` files:
+ 2. Replace fields `valid_action_ids` and `valid_class_ids` to list of you valid action IDs for next layers in `$CAFFE_ROOT/models/person_detection_action_recognition/stage1__person_detector/train.prototxt` and `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/train.prototxt` files:
     - `data`
     - `action/split_loss`
     - `action/glob_push_loss`
@@ -103,15 +105,15 @@ Note: if you want to change the list of supported actions follow next steps:
     - `samples/center_loss`
     - `samples/extractor`
  3. Set a proper number of classes for each row marked with `# num_actions` in next files:
-    - `$CAFFE_ROOT/model/person_detection_action_recognition/stage2__action_regognition/train.prototxt`
-    - `$CAFFE_ROOT/model/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt`
-    - `$CAFFE_ROOT/model/person_detection_action_recognition/stage3__convert_for_inference/ie_conversation.prototxt`
-    - `$CAFFE_ROOT/model/person_detection_action_recognition/stage3__convert_for_inference/inference.prototxt`
+    - `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/train.prototxt`
+    - `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt`
+    - `$CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/ie_conversation.prototxt`
+    - `$CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/inference.prototxt`
 
 ### Person Detection training
 On first stage you should train the SSD-based person (two class) detector. To do this you should run single-GPU (python layers does not allow to run on multiple GPUs) training procedure (specify `GPU_ID` and make sure to include `$CAFFE_ROOT/python` to your `PYTHONPATH`):
 ```
-$CAFFE_ROOT/build/tools/caffe train --gpu=GPU_ID --solver=$CAFFE_ROOT/model/person_detection_action_recognition/stage1__person_detector/solver.prototxt
+$CAFFE_ROOT/build/tools/caffe train --gpu=GPU_ID --solver=$CAFFE_ROOT/models/person_detection_action_recognition/stage1__person_detector/solver.prototxt
  ```
 If it's needed the model evaluation can be performed by default pipeline in the original SSD [repository](https://github.com/weiliu89/caffe/tree/ssd). Moreover the training process of PD model can be carried out using SSD-original environment without any changes and after this the weights of trained model can be used as an initialization point on next [stage](#action-recognition-training).
 
@@ -126,25 +128,25 @@ On next stage we should train the Action Recognition (AR) model which reuses det
  where `pd_weights_path.cafemodel` - weights of trained PD model (see [previous](#person-detection-training) section) and `ar_init_weights_path.cafemodel` - output path to init weights for AR model.
  2. Run single-GPU  training procedure: 
 ```
-$CAFFE_ROOT/build/tools/caffe train --gpu=GPU_ID --solver=$CAFFE_ROOT/model/person_detection_action_recognition/stage2__action_regognition/solver.prototxt --weights="pd_weights_path.cafemodel,ar_init_weights_path.cafemodel"
+$CAFFE_ROOT/build/tools/caffe train --gpu=GPU_ID --solver=$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/solver.prototxt --weights="pd_weights_path.cafemodel,ar_init_weights_path.cafemodel"
  ```
 
 ### Action Recognition model evaluation
 To evaluate the quality of trained Action Recognition model on your test data you can use provided script. To do this you need the file with testing tasks in the same format as for training stage (see [this](#train-tasks-file-format) section).
 ```
-python $CAFFE_ROOT/python/action_metrics.py -t path_to_testing_tasks.txt -p $CAFFE_ROOT/model/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt -w action_detection_best_snapshot_path.caffemodel
+python $CAFFE_ROOT/python/action_metrics.py -t path_to_testing_tasks.txt -p $CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt -w action_detection_best_snapshot_path.caffemodel
  ```
 
 ### Conversation to MO-compatible format
 1. Run script to convert weights into MO-compatible format:
 ```
-    python $CAFFE_ROOT/python/convert_to_ie_compatible -m $CAFFE_ROOT/stage3__convert_for_inference/ie_conversation.prototxt -w "action_detection_snapshot_path.caffemodel" -o "action_detection_inference_path.caffemodel"
+    python $CAFFE_ROOT/python/convert_to_ie_compatible -m $CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/ie_conversation.prototxt -w "action_detection_snapshot_path.caffemodel" -o "action_detection_inference_path.caffemodel"
  ```
 where `action_detection_snapshot_path.caffemodel` is a selected snapshot of AR training procedure and `action_detection_inference_path.caffemodel` - path to save final model parameters.
 
  2. Run model optimizer: 
 ```
- python3 mo_caffe.py -m $CAFFE_ROOT/model/person_detection_action_recognition/stage3__convert_for_inference/inference.prototxt -w action_detection_inference_path.caffemodel -n RMNet_Action_Detection
+ python3 mo_caffe.py -m $CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/inference.prototxt -w action_detection_inference_path.caffemodel -n RMNet_Action_Detection
  ```
 
 ## License and Citation
@@ -181,3 +183,4 @@ If you find **AM-Softmax** useful in your research, please consider to cite:
 	  journal = {arXiv preprint arXiv:1801.05599},
 	  year = {2018}
 	}
+
