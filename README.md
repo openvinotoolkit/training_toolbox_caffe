@@ -179,10 +179,9 @@ Please cite SSD in your publications if it helps your research:
 ### AM-Softmax
 If you find **AM-Softmax** useful in your research, please consider to cite:
 
-	@article{Wang_2018_amsoftmax,
-	  title = {Additive Margin Softmax for Face Verification},
-	  author = {Wang, Feng and Liu, Weiyang and Liu, Haijun and Cheng, Jian},
-	  journal = {arXiv preprint arXiv:1801.05599},
-	  year = {2018}
-	}
-
+    @article{Wang_2018_amsoftmax,
+      title = {Additive Margin Softmax for Face Verification},
+      author = {Wang, Feng and Liu, Weiyang and Liu, Haijun and Cheng, Jian},
+      journal = {arXiv preprint arXiv:1801.05599},
+      year = {2018}
+    }
