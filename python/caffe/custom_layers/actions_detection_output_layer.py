@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -238,7 +239,7 @@ class ActionsDetectionOutputLayer(BaseLayer):
             detections_data = np.array(bottom[0].data)
 
             anchors_data = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 anchors_data.append(np.array(bottom[i + 1].data))
 
             all_detections = self._parse_detections(

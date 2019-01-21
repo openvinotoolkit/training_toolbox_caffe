@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -150,7 +151,7 @@ class SplitLossLayer(BaseLayer):
             centers = np.array(bottom[1].data)
 
             self._embeddings = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 2].data))
 
             all_candidates = []
@@ -160,9 +161,9 @@ class SplitLossLayer(BaseLayer):
             for item_id in batch_detections.keys():
                 detections = batch_detections[item_id]
 
-                for i in xrange(len(detections)):
+                for i, _ in enumerate(detections):
                     anchor_det = detections[i]
-                    for j in xrange(i + 1, len(detections)):
+                    for j in range(i + 1, len(detections)):
                         ref_det = detections[j]
 
                         # exclude same class predictions
@@ -250,7 +251,7 @@ class SplitLossLayer(BaseLayer):
             centers_diff_data = np.zeros(bottom[1].data.shape) if propagate_down[1] else None
 
             diff_data = {}
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     diff_data[anchor_id] = np.zeros(bottom[anchor_id + 2].data.shape)
 
@@ -273,7 +274,7 @@ class SplitLossLayer(BaseLayer):
             if centers_diff_data is not None:
                 bottom[1].diff[...] = centers_diff_data
 
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     bottom[anchor_id + 2].diff[...] = diff_data[anchor_id]
         except Exception:

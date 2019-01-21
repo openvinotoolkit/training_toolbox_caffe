@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 
 import numpy as np
 
@@ -76,7 +77,7 @@ class AdaptiveWeightingLossLayer(BaseLayer):
 
             samples = []
             losses = []
-            for i in xrange(num_variables):
+            for i in range(num_variables):
                 loss_value = np.array(bottom[i].data, dtype=np.float32).reshape([-1])
                 assert len(loss_value) == 1
 
@@ -93,7 +94,7 @@ class AdaptiveWeightingLossLayer(BaseLayer):
             top[0].data[...] = np.sum(losses) if len(losses) > 0 else 0.0
 
             if len(top) == 1 + num_variables:
-                for i in xrange(num_variables):
+                for i in range(num_variables):
                     top[i + 1].data[...] = np.copy(bottom[i].data)
 
             self._samples = samples
@@ -112,7 +113,7 @@ class AdaptiveWeightingLossLayer(BaseLayer):
 
         try:
             num_variables = len(bottom)
-            for i in xrange(num_variables):
+            for i in range(num_variables):
                 bottom[i].diff[...] = 0.0
 
             top_diff_value = top[0].diff[0]
@@ -136,5 +137,5 @@ class AdaptiveWeightingLossLayer(BaseLayer):
 
         num_variables = len(bottom)
         if len(top) == 1 + num_variables:
-            for i in xrange(num_variables):
+            for i in range(num_variables):
                 top[i + 1].reshape(1)

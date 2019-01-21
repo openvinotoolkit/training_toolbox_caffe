@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -59,7 +60,7 @@ class DetMatcherLayer(BaseLayer):
             return {}
 
         batch_size = int(np.max(records[:, 0])) + 1
-        batch_data = {i: [] for i in xrange(batch_size)}
+        batch_data = {i: [] for i in range(batch_size)}
 
         for record in records:
             item_id = int(record[0])
@@ -103,7 +104,7 @@ class DetMatcherLayer(BaseLayer):
             return {}
 
         batch_size = int(np.max(records[:, 0])) + 1
-        batch_data = {i: [] for i in xrange(batch_size)}
+        batch_data = {i: [] for i in range(batch_size)}
 
         for record in records:
             item_id = int(record[0])
@@ -239,7 +240,7 @@ class DetMatcherLayer(BaseLayer):
             # First: match gt to predictions 1:1 with IoU > min_gt_iou
             gt_inds, pred_inds = linear_sum_assignment(distance_matrix)
 
-            for i in xrange(len(gt_inds)):
+            for i, _ in enumerate(gt_inds):
                 gt_id = gt_inds[i]
                 predicted_id = pred_inds[i]
 
@@ -277,7 +278,7 @@ class DetMatcherLayer(BaseLayer):
                 valid_matched_gt_bboxes = [gt_bboxes[i] for i in valid_matched_gt_ids]
                 valid_predicted_bboxes = [predicted_bboxes[i] for i in valid_prediction_ids]
 
-                for i in xrange(len(valid_matched_gt_bboxes)):
+                for i, _ in enumerate(valid_matched_gt_bboxes):
                     gt_bbox = valid_matched_gt_bboxes[i]
                     predicted_bbox = valid_predicted_bboxes[i]
                     matches.append(InputDetection(item_id=item_id,

@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -88,7 +89,7 @@ class LocalPushLossLayer(BaseLayer):
         :return: mask of valid pixels
         """
 
-        masks = [np.zeros([height, width], dtype=np.bool) for _ in xrange(num_classes)]
+        masks = [np.zeros([height, width], dtype=np.bool) for _ in range(num_classes)]
         for det in detections:
             masks[det.action][det.y, det.x] = True
         return masks
@@ -188,7 +189,7 @@ class LocalPushLossLayer(BaseLayer):
             num_centers = centers_data.shape[0]
 
             self._embeddings = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 2].data))
 
             if self._adaptive_weights:
@@ -220,7 +221,7 @@ class LocalPushLossLayer(BaseLayer):
 
                 pos_distance = 1.0 - np.sum(det_embedding * center_embedding)
 
-                for center_id in xrange(num_centers):
+                for center_id in range(num_centers):
                     if center_id == det.action:
                         continue
 
@@ -248,13 +249,13 @@ class LocalPushLossLayer(BaseLayer):
             if self._instance_norm:
                 instance_weights = \
                     [instance_weights[i] / float(instance_counts[pos_matches[i][0].item][pos_matches[i][0].id])
-                     for i in xrange(len(pos_matches))]
+                     for i in range(len(pos_matches))]
                 num_instances = np.sum([len(counts) for counts in instance_counts.values()])
             else:
-                instance_weights = [instance_weights[i] for i in xrange(len(pos_matches))]
+                instance_weights = [instance_weights[i] for i, _ in enumerate(pos_matches)]
                 num_instances = len(pos_matches)
 
-            weighted_sum_losses = np.sum([instance_weights[i] * losses[i] for i in xrange(len(pos_matches))])
+            weighted_sum_losses = np.sum([instance_weights[i] * losses[i] for i, _ in enumerate(pos_matches)])
 
             top[0].data[...] = weighted_sum_losses / float(num_instances) if num_instances > 0 else 0.0
             if len(top) == 4:
@@ -286,14 +287,14 @@ class LocalPushLossLayer(BaseLayer):
             centers_diff_data = np.zeros(bottom[1].data.shape) if propagate_down[1] else None
 
             anchor_diff_data = {}
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     anchor_diff_data[anchor_id] = np.zeros(bottom[anchor_id + 2].data.shape)
 
             if len(self._pos_matches) > 0:
                 factor = top[0].diff[0] / float(self._num_instances)
 
-                for i in xrange(len(self._pos_matches)):
+                for i, _ in enumerate(self._pos_matches):
                     det, center_id = self._pos_matches[i]
                     loss_weight = self._weights[i]
 
@@ -310,7 +311,7 @@ class LocalPushLossLayer(BaseLayer):
             if centers_diff_data is not None:
                 bottom[1].diff[...] = centers_diff_data
 
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     bottom[anchor_id + 2].diff[...] = anchor_diff_data[anchor_id]
         except Exception:

@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -136,7 +137,7 @@ class GlobPushLossLayer(BaseLayer):
             num_centers = centers_data.shape[0]
 
             self._embeddings = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 2].data))
 
             height, width = self._embeddings[0].shape[2:]
@@ -153,11 +154,11 @@ class GlobPushLossLayer(BaseLayer):
                 total_num_pairs += self._num_anchors * num_centers * int(np.sum(outer_mask))
 
                 anchor_masks = []
-                for anchor_id in xrange(self._num_anchors):
+                for anchor_id in range(self._num_anchors):
                     anchor_embeddings = self._embeddings[anchor_id][item_id]
 
                     center_masks = []
-                    for center_id in xrange(num_centers):
+                    for center_id in range(num_centers):
                         center_embedding = centers_data[center_id].reshape([-1, 1, 1])
 
                         distances = 1.0 - np.sum(anchor_embeddings * center_embedding, axis=0)
@@ -202,22 +203,22 @@ class GlobPushLossLayer(BaseLayer):
             centers_diff_data = np.zeros(bottom[1].data.shape) if propagate_down[1] else None
 
             anchor_diff_data = {}
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     anchor_diff_data[anchor_id] = np.zeros(bottom[anchor_id + 2].data.shape)
 
             if self._valid_num_pairs > 0:
                 factor = top[0].diff[0] / float(self._valid_num_pairs)
-                for item_id in xrange(len(self._masks)):
+                for item_id, _ in enumerate(self._masks):
                     anchor_masks = self._masks[item_id]
-                    for anchor_id in xrange(len(anchor_masks)):
+                    for anchor_id, _ in enumerate(anchor_masks):
                         embeddings = self._embeddings[anchor_id][item_id]
                         diff_data = anchor_diff_data[anchor_id][item_id]
 
                         embedding_size = embeddings.shape[0]
 
                         center_masks = anchor_masks[anchor_id]
-                        for center_id in xrange(len(center_masks)):
+                        for center_id, _ in enumerate(center_masks):
                             mask = center_masks[center_id]
                             num_pairs = int(np.sum(mask))
                             mask = np.tile(np.expand_dims(mask, axis=0), reps=[embedding_size, 1, 1])
@@ -233,7 +234,7 @@ class GlobPushLossLayer(BaseLayer):
             if centers_diff_data is not None:
                 bottom[1].diff[...] = centers_diff_data
 
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     bottom[anchor_id + 2].diff[...] = anchor_diff_data[anchor_id]
         except Exception:

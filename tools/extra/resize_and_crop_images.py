@@ -136,7 +136,7 @@ class ResizeCropImagesMapper(mapreducer.BasicMapper):
                                                               FLAGS.output_side_length)
             except Exception as e:
                 # we ignore the exception (maybe the image is corrupted?)
-                print('{}: {}'.format(line, e)
+                print('{}: {}'.format(line, e))
         yield value, FLAGS.output_folder
 
 mapreducer.REGISTER_DEFAULT_MAPPER(ResizeCropImagesMapper)

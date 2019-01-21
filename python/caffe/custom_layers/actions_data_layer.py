@@ -14,6 +14,7 @@
 import time
 import traceback
 import signal
+from builtins import range
 from os import listdir
 from os.path import exists, basename, isfile, join
 from collections import namedtuple
@@ -221,7 +222,7 @@ class SampleDataFromDisk(object):
                 frame_id = int(bbox.attrib['frame'])
 
                 action_name = None
-                for bbox_attr_id in xrange(len(bbox)):
+                for bbox_attr_id, _ in enumerate(bbox):
                     attribute_name = bbox[bbox_attr_id].attrib['name']
                     if attribute_name != 'action':
                         continue
@@ -390,7 +391,7 @@ class ActionsDataLayer(BaseLayer):
                     neighbours.sort(key=lambda t: t[1])
 
                     support_size = np.random.randint(2, len(valid_objects) + 1)
-                    support_set = [neighbours[i][0] for i in xrange(support_size)]
+                    support_set = [neighbours[i][0] for i in range(support_size)]
                     support_bbox = _find_limits(support_set)
 
             crop_aspect_ratio = np.random.uniform(self.crop_ratio_limits_[0], self.crop_ratio_limits_[1])
@@ -817,7 +818,7 @@ class ActionsDataLayer(BaseLayer):
 
                 final_num_classes = len(class_subsets)
                 final_ids = np.zeros([final_num_classes * min_queue_size], dtype=np.int32)
-                for i in xrange(final_num_classes):
+                for i in range(final_num_classes):
                     final_ids[i::final_num_classes] = class_subsets[i]
 
                 for i in final_ids:
@@ -845,7 +846,7 @@ class ActionsDataLayer(BaseLayer):
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         if single_run:
-            for _ in xrange(max_size):
+            for _ in range(max_size):
                 _step()
         else:
             while True:
@@ -866,7 +867,7 @@ class ActionsDataLayer(BaseLayer):
         self._ids_filler_process.start()
 
         self._data_fillers_pool = []
-        for _ in xrange(self.num_data_fillers_):
+        for _ in range(self.num_data_fillers_):
             new_data_filler = Process(target=self._data_queue_filler,
                                       args=(self.annotated_images_queue, self.frame_ids_queue,
                                             self.data_queue_size_, self.single_iter_))

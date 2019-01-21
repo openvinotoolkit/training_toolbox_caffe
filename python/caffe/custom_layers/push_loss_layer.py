@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -65,7 +66,7 @@ class PushLossLayer(BaseLayer):
         assert data.size % record_size == 0, 'incorrect record_size'
         records = data.reshape([-1, record_size])
 
-        detections = {i: [] for i in xrange(len(valid_action_ids))}
+        detections = {i: [] for i, _ in enumerate(valid_action_ids)}
         for record in records:
             detection = converter(record)
 
@@ -168,10 +169,10 @@ class PushLossLayer(BaseLayer):
             detections = self._filter_detections(all_detections, self._max_num_samples)
 
             classes = detections.keys()
-            class_pairs = [(classes[i], classes[j]) for i in xrange(len(classes)) for j in xrange(i + 1, len(classes))]
+            class_pairs = [(classes[i], classes[j]) for i, _ in enumerate(classes) for j in range(i + 1, len(classes))]
 
             self._embeddings = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 1].data))
 
             all_candidates = []
@@ -182,12 +183,12 @@ class PushLossLayer(BaseLayer):
                 if len(detections_i) == 0 or len(detections_j) == 0:
                     continue
 
-                for i in xrange(len(detections_i)):
+                for i, _ in enumerate(detections_i):
                     anchor_det = detections_i[i]
                     anchor_embed = self._embeddings[anchor_det.anchor][anchor_det.item, :,
                                                                        anchor_det.y, anchor_det.x]
 
-                    for j in xrange(len(detections_j)):
+                    for j, _ in enumerate(detections_j):
                         ref_det = detections_j[j]
                         ref_embed = self._embeddings[ref_det.anchor][ref_det.item, :, ref_det.y, ref_det.x]
 
@@ -236,7 +237,7 @@ class PushLossLayer(BaseLayer):
                 raise Exception('Cannot propagate down through the matched detections')
 
             diff_data = {}
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 1]:
                     diff_data[anchor_id] = np.zeros(bottom[anchor_id + 1].data.shape)
 
@@ -250,7 +251,7 @@ class PushLossLayer(BaseLayer):
                     diff_data[ref_det.anchor][ref_det.item, :, ref_det.y, ref_det.x] \
                         += factor * self._embeddings[anchor_det.anchor][anchor_det.item, :, anchor_det.y, anchor_det.x]
 
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 1]:
                     bottom[anchor_id + 1].diff[...] = diff_data[anchor_id]
         except Exception:

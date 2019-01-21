@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -205,7 +206,7 @@ class CenterLossLayer(BaseLayer):
             self._centers = np.array(bottom[1].data)
 
             self._embeddings = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 2].data))
 
             if self._adaptive_weights:
@@ -266,8 +267,7 @@ class CenterLossLayer(BaseLayer):
                 instance_weights = [class_weights[det.action] for det in valid_detections]
                 num_instances = len(valid_detections)
 
-            weighted_sum_losses = np.sum([instance_weights[i] * losses[i]
-                                          for i in xrange(len(valid_detections))])
+            weighted_sum_losses = np.sum([instance_weights[i] * losses[i] for i, _ in enumerate(valid_detections)])
 
             top[0].data[...] = weighted_sum_losses / float(num_instances) if num_instances > 0 else 0.0
             if len(top) > 1:
@@ -301,14 +301,14 @@ class CenterLossLayer(BaseLayer):
             centers_diff_data = np.zeros(bottom[1].data.shape) if propagate_down[1] else None
 
             anchor_diff_data = {}
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     anchor_diff_data[anchor_id] = np.zeros(bottom[anchor_id + 2].data.shape)
 
             if len(self._valid_detections) > 0:
                 factor = top[0].diff[0] / float(self._num_instances)
 
-                for i in xrange(len(self._valid_detections)):
+                for i, _ in enumerate(self._valid_detections):
                     det = self._valid_detections[i]
                     weight = -factor * self._weights[i]
 
@@ -323,7 +323,7 @@ class CenterLossLayer(BaseLayer):
             if centers_diff_data is not None:
                 bottom[1].diff[...] = centers_diff_data
 
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 2]:
                     bottom[anchor_id + 2].diff[...] = anchor_diff_data[anchor_id]
         except Exception:

@@ -12,6 +12,7 @@
 """
 
 import traceback
+from builtins import range
 from collections import namedtuple
 
 import numpy as np
@@ -61,7 +62,7 @@ class SamplingExtractorLayer(BaseLayer):
         assert data.size % record_size == 0, 'incorrect record_size'
         records = data.reshape([-1, record_size])
 
-        detections = {i: [] for i in xrange(len(valid_action_ids))}
+        detections = {i: [] for i, _ in enumerate(valid_action_ids)}
         for record in records:
             detection = converter(record)
 
@@ -140,7 +141,7 @@ class SamplingExtractorLayer(BaseLayer):
                                                    self._valid_action_ids, self._min_conf)
 
             self._embeddings = []
-            for i in xrange(self._num_anchors):
+            for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 1].data))
 
             valid_class_ids = all_detections.keys()
@@ -169,7 +170,7 @@ class SamplingExtractorLayer(BaseLayer):
 
                 sample_ids1 = []
                 sample_ids2 = []
-                for _ in xrange(self._num_steps):
+                for _ in range(self._num_steps):
                     ids_pair = np.random.choice(valid_ids, 2, replace=False)
                     sample_ids1.append(ids_pair[0])
                     sample_ids2.append(ids_pair[1])
@@ -184,7 +185,7 @@ class SamplingExtractorLayer(BaseLayer):
                 sampled_labels.append(np.full([self._num_steps], float(class_id), dtype=np.float32))
 
                 self._samples += [(alpha[i], betta[i], detections[sample_ids1[i]], detections[sample_ids2[i]])
-                                  for i in xrange(len(sample_ids1))]
+                                  for i, _ in enumerate(sample_ids1)]
 
             assert len(self._samples) == len(sampled_vectors) * self._num_steps
 
@@ -220,14 +221,14 @@ class SamplingExtractorLayer(BaseLayer):
                 raise Exception('Cannot propagate down through the matched detections')
 
             anchor_diff_data = {}
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 1]:
                     anchor_diff_data[anchor_id] = np.zeros(bottom[anchor_id + 1].data.shape)
 
             if len(self._samples) > 0:
                 diff_data = np.array(top[0].diff)
 
-                for out_sample_id in xrange(len(self._samples)):
+                for out_sample_id, _ in enumerate(self._samples):
                     alpha, betta, det_i, det_j = self._samples[out_sample_id]
 
                     current_diff = diff_data[out_sample_id]
@@ -240,7 +241,7 @@ class SamplingExtractorLayer(BaseLayer):
                         anchor_diff_data[det_j.anchor][det_j.item, :, det_j.y, det_j.x] \
                             += betta * current_diff
 
-            for anchor_id in xrange(self._num_anchors):
+            for anchor_id in range(self._num_anchors):
                 if propagate_down[anchor_id + 1]:
                     bottom[anchor_id + 1].diff[...] = anchor_diff_data[anchor_id]
         except Exception:
