@@ -32,11 +32,12 @@ import caffe
 
 
 BBoxDesc = namedtuple('BBoxDesc', 'label, det_conf, action_conf, xmin, ymin, xmax, ymax')
-ACTION_NAMES_MAP = {'sitting': 0, 'standing': 1, 'raising_hand': 2,
-                    '__undefined__': 3, 'listening': 0, 'reading': 0, 'writing': 0,
-                    'lie_on_the_desk': 0, 'in_group_discussions': 3}
-ACTION_NAMES_BACK_MAP = {0: 'sitting', 1: 'standing', 2: 'raising_hand'}
-VALID_ACTION_NAMES = ['sitting', 'standing', 'raising_hand']
+
+ACTION_NAMES_MAP = {'sitting': 0, 'standing': 1, 'raising_hand': 2, 'listening': 3,
+                    'reading': 4, 'writing': 4, 'lie_on_the_desk': 4, 'busy': 4,
+                    'in_group_discussions': 5, '__undefined__': 5}
+VALID_ACTION_NAMES = ['sitting', 'standing', 'raising_hand', 'listening', 'head_down']
+ACTION_NAMES_BACK_MAP = {i: n for i, n in enumerate(VALID_ACTION_NAMES)}
 
 
 def extract_video_properties(vidcap):
@@ -626,7 +627,7 @@ def main():
     parser.add_argument('--out_name', default='detection_out', type=str, help='Name of detection output blob')
     parser.add_argument('--compute_mode', type=str, choices=['CPU', 'GPU'], default='GPU',
                         help='Caffe compute mode: CPU or GPU')
-    parser.add_argument('--gpu_id', type=int, default=0, choices=[0, 1], help='GPU id')
+    parser.add_argument('--gpu_id', type=int, default=0, choices=range(8), help='GPU id')
     args = parser.parse_args()
 
     assert exists(args.proto)
