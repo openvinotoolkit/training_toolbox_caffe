@@ -47,7 +47,7 @@ def main():
             layer.bottom[i] = args.prefix + bottom
         layer.name = args.prefix + name
 
-    with file(args.weights_out, 'wb') as file_stream:
+    with open(args.weights_out, 'wb') as file_stream:
         file_stream.write(net_weights.SerializeToString())
 
 if __name__ == '__main__':

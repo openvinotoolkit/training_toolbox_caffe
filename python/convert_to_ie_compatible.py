@@ -15,6 +15,7 @@
 import os
 
 from argparse import ArgumentParser
+from builtins import range
 from os.path import exists
 
 import numpy as np
@@ -83,7 +84,7 @@ def main():
     centers = load_centers(net, args.centers_name)
     conv_params = convert_to_conv_params(centers)
 
-    for i in xrange(args.num_anchors):
+    for i in range(args.num_anchors):
         layer_name = '{}{}'.format(args.out_prefix, i + 1)
         layer_params = net.params[layer_name]
         assert len(layer_params) == 1

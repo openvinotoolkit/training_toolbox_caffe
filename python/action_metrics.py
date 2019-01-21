@@ -18,6 +18,7 @@ import os
 
 from argparse import ArgumentParser
 from bisect import bisect
+from builtins import range
 from collections import namedtuple
 from os.path import exists, basename
 
@@ -25,6 +26,7 @@ import cv2
 import numpy as np
 from lxml import etree
 from tqdm import tqdm
+from six import iteritems, itervalues
 
 os.environ['GLOG_minloglevel'] = '2'
 #pylint: disable=wrong-import-position
@@ -109,7 +111,7 @@ def load_annotation(annotation_path, video_size):
             frame_id = int(bbox.attrib['frame'])
 
             action_name = None
-            for bbox_attr_id in xrange(len(bbox)):
+            for bbox_attr_id in range(len(bbox)):
                 attribute_name = bbox[bbox_attr_id].attrib['name']
                 if attribute_name != 'action':
                     continue
@@ -180,8 +182,8 @@ def calculate_similarity_matrix(set_a, set_b):
     """
 
     similarity = np.zeros([len(set_a), len(set_b)], dtype=np.float32)
-    for i in xrange(len(set_a)):
-        for j in xrange(len(set_b)):
+    for i in range(len(set_a)):
+        for j in range(len(set_b)):
             similarity[i, j] = iou(set_a[i], set_b[j])
     return similarity
 
@@ -273,7 +275,7 @@ def extract_detections(image, net, in_blob_name, out_blob_name, min_det_conf=0.1
                                action_conf=action_conf[i],
                                xmin=det_xmin[i], ymin=det_ymin[i],
                                xmax=det_xmax[i], ymax=det_ymax[i])
-                      for i in xrange(num_detections)]
+                      for i in range(num_detections)]
 
     valid_bbox = [BBoxDesc(label=det.label,
                            det_conf=det.det_conf,
@@ -364,7 +366,7 @@ def match_detections(predicted_data, gt_data, min_iou):
         similarity_matrix = calculate_similarity_matrix(gt_bboxes, predicted_bboxes)
 
         matches = []
-        for _ in xrange(len(gt_bboxes)):
+        for _ in range(len(gt_bboxes)):
             best_match_pos = np.unravel_index(similarity_matrix.argmax(), similarity_matrix.shape)
             best_match_value = similarity_matrix[best_match_pos]
 
@@ -421,10 +423,10 @@ def detection_classagnostic_metrics(all_matched_ids, predicted_data):
     :return: Detection metrics
     """
 
-    num_detections = int(np.sum([len(bbox_list) for bbox_list in predicted_data.values()]))
+    num_detections = int(np.sum([len(bbox_list) for bbox_list in itervalues(predicted_data)]))
     true_positives = np.zeros([num_detections], dtype=np.int32)
     false_positives = np.ones([num_detections], dtype=np.int32)
-    scores = np.array([bbox.det_conf for bbox_list in predicted_data.values() for bbox in bbox_list],
+    scores = np.array([bbox.det_conf for bbox_list in itervalues(predicted_data) for bbox in bbox_list],
                       dtype=np.float32)
 
     bias = 0
@@ -454,11 +456,11 @@ def detection_classspecific_metrics(all_matched_ids, predicted_data, gt_data, cl
     """
 
     filtered_predicted_pos = {item: [i for i, b in enumerate(l) if b.label == class_id]
-                              for item, l in predicted_data.iteritems()}
+                              for item, l in iteritems(predicted_data)}
     filtered_predicted_pos = {item: {i: pos for pos, i in enumerate(ids)}
-                              for item, ids in filtered_predicted_pos.iteritems()}
+                              for item, ids in iteritems(filtered_predicted_pos)}
 
-    num_predicted_detections = int(np.sum([len(l) for l in filtered_predicted_pos.values()]))
+    num_predicted_detections = int(np.sum([len(l) for l in itervalues(filtered_predicted_pos)]))
     true_positives = np.zeros([num_predicted_detections], dtype=np.int32)
     false_positives = np.ones([num_predicted_detections], dtype=np.int32)
 
@@ -481,7 +483,7 @@ def detection_classspecific_metrics(all_matched_ids, predicted_data, gt_data, cl
 
         bias += len(predicted_class_positions)
 
-    scores = np.array([b.action_conf for l in predicted_data.values() for b in l if b.label == class_id],
+    scores = np.array([b.action_conf for l in itervalues(predicted_data) for b in l if b.label == class_id],
                       dtype=np.float32)
 
     return scores, true_positives, false_positives
@@ -592,7 +594,7 @@ def print_confusion_matrix(input_cm, name, classes):
     print('{} CM:'.format(name))
     for i, class_name in enumerate(classes):
         values = ''
-        for j in xrange(len(classes)):
+        for j in range(len(classes)):
             values += '{:7.2f} |'.format(norm_cm[i, j] * 100.)
         print('   {0: <{1}}|{2}'.format(class_name, max_class_name_length + 1, values))
 
@@ -644,11 +646,11 @@ def main():
     glob_num_gt = 0
     glob_num_images = 0
 
-    glob_class_scores = {item: np.array([], dtype=np.float32) for item in xrange(num_classes)}
-    glob_class_tp = {item: np.array([], dtype=np.int32) for item in xrange(num_classes)}
-    glob_class_fp = {item: np.array([], dtype=np.int32) for item in xrange(num_classes)}
-    glob_class_num_gt = {item: 0 for item in xrange(num_classes)}
-    glob_class_num_images = {item: 0 for item in xrange(num_classes)}
+    glob_class_scores = {item: np.array([], dtype=np.float32) for item in range(num_classes)}
+    glob_class_tp = {item: np.array([], dtype=np.int32) for item in range(num_classes)}
+    glob_class_fp = {item: np.array([], dtype=np.int32) for item in range(num_classes)}
+    glob_class_num_gt = {item: 0 for item in range(num_classes)}
+    glob_class_num_images = {item: 0 for item in range(num_classes)}
 
     tasks = parse_tasks(args.tasks)
     for task_id, task in enumerate(tasks):
@@ -667,7 +669,7 @@ def main():
         local_confusion_matrix = calc_confusion_matrix(all_matches, predicted_actions, annotation, num_classes)
         scores, local_tp, local_fp =\
             detection_classagnostic_metrics(all_matches, predicted_actions)
-        num_gt_bboxes = np.sum([len(bbox_list) for bbox_list in annotation.values()])
+        num_gt_bboxes = np.sum([len(bbox_list) for bbox_list in itervalues(annotation)])
 
         task_num_images = len(annotation)
 
@@ -684,15 +686,15 @@ def main():
 
         print('Task Detection Metrics by classes:')
         map_sum = 0.0
-        for class_id in xrange(num_classes):
+        for class_id in range(num_classes):
             class_scores, class_tp, class_fp =\
                 detection_classspecific_metrics(all_matches, predicted_actions, annotation, class_id)
             class_num_gt_bboxes = np.sum([len([True for b in bbox_list if b.label == class_id])
-                                          for bbox_list in annotation.values()])
+                                          for bbox_list in itervalues(annotation)])
 
-            class_gt_image_ids = [img_id for img_id, bbox_list in annotation.iteritems()
+            class_gt_image_ids = [img_id for img_id, bbox_list in iteritems(annotation)
                                   if len([True for b in bbox_list if b.label == class_id]) > 0]
-            class_pred_image_ids = [img_id for img_id, bbox_list in predicted_actions.iteritems()
+            class_pred_image_ids = [img_id for img_id, bbox_list in iteritems(predicted_actions)
                                     if len([True for b in bbox_list if b.label == class_id]) > 0]
             class_num_images = np.sum(np.unique(class_gt_image_ids + class_pred_image_ids))
 
@@ -720,7 +722,7 @@ def main():
 
     print('Glob Detection Metrics by classes:')
     glob_map_sum = 0.0
-    for class_id in xrange(num_classes):
+    for class_id in range(num_classes):
         class_mr, class_ap = calc_mr_ap(glob_class_scores[class_id], glob_class_tp[class_id], glob_class_fp[class_id],
                                         glob_class_num_gt[class_id], glob_class_num_images[class_id])
         print('   {}: AP: {:.2f} miss_rate@0.1: {:.2f}'

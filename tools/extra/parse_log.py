@@ -211,7 +211,7 @@ def write_csv(output_filename, dict_list, delimiter, verbose=False):
         dict_writer.writeheader()
         dict_writer.writerows(dict_list)
     if verbose:
-        print 'Wrote %s' % output_filename
+        print('Wrote %s' % output_filename)
 
 
 def parse_args():

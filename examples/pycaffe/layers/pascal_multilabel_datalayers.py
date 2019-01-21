@@ -139,8 +139,7 @@ class BatchLoader(object):
         # this class does some simple data-manipulations
         self.transformer = SimpleTransformer()
 
-        print "BatchLoader initialized with {} images".format(
-            len(self.indexlist))
+        print("BatchLoader initialized with {} images".format(len(self.indexlist)))
 
     def load_next_image(self):
         """
