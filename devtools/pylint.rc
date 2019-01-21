@@ -146,7 +146,8 @@ disable=print-statement,
         too-many-instance-attributes,
         attribute-defined-outside-init,
         too-many-boolean-expressions,
-        too-many-locals
+        too-many-locals,
+        assignment-from-no-return
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
