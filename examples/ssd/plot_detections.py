@@ -129,7 +129,7 @@ if __name__ == "__main__":
     result_file = args.resultfile
     img_dir = args.imgdir
     if not os.path.exists(img_dir):
-        print "{} does not exist".format(img_dir)
+        print("{} does not exist".format(img_dir))
         sys.exit()
     labelmap_file = args.labelmap_file
     labelmap = None

@@ -25,8 +25,8 @@ from os.path import exists, basename
 import cv2
 import numpy as np
 from lxml import etree
-from tqdm import tqdm
 from six import iteritems, itervalues
+from tqdm import tqdm
 
 os.environ['GLOG_minloglevel'] = '2'
 #pylint: disable=wrong-import-position
@@ -101,7 +101,7 @@ def load_annotation(annotation_path, video_size):
     roi = [float(video_size[1]), float(video_size[0]), 0.0, 0.0]
 
     for track in tqdm(root, desc='Extracting annotation'):
-        if 'label' not in track.attrib.keys() or track.attrib['label'] != 'person':
+        if 'label' not in track.attrib or track.attrib['label'] != 'person':
             continue
 
         for bbox in track:
@@ -111,14 +111,14 @@ def load_annotation(annotation_path, video_size):
             frame_id = int(bbox.attrib['frame'])
 
             action_name = None
-            for bbox_attr_id in range(len(bbox)):
+            for bbox_attr_id, _ in enumerate(bbox):
                 attribute_name = bbox[bbox_attr_id].attrib['name']
                 if attribute_name != 'action':
                     continue
 
                 action_name = bbox[bbox_attr_id].text
 
-            if action_name is not None and action_name in ACTION_NAMES_MAP.keys():
+            if action_name is not None and action_name in ACTION_NAMES_MAP:
                 label = ACTION_NAMES_MAP[action_name]
 
                 xmin = float(bbox.attrib['xtl'])
@@ -182,8 +182,8 @@ def calculate_similarity_matrix(set_a, set_b):
     """
 
     similarity = np.zeros([len(set_a), len(set_b)], dtype=np.float32)
-    for i in range(len(set_a)):
-        for j in range(len(set_b)):
+    for i, _ in enumerate(set_a):
+        for j, _ in enumerate(set_b):
             similarity[i, j] = iou(set_a[i], set_b[j])
     return similarity
 
@@ -352,9 +352,9 @@ def match_detections(predicted_data, gt_data, min_iou):
     total_gt_bbox_num = 0
     matched_gt_bbox_num = 0
 
-    frame_ids = gt_data.keys()
+    frame_ids = list(gt_data)
     for frame_id in tqdm(frame_ids, desc='Matching detections'):
-        if frame_id not in predicted_data.keys():
+        if frame_id not in predicted_data:
             all_matches[frame_id] = []
             continue
 
@@ -402,7 +402,7 @@ def calc_confusion_matrix(all_matched_ids, predicted_data, gt_data, num_classes)
     """
 
     out_cm = np.zeros([num_classes, num_classes], dtype=np.int32)
-    for frame_id in tqdm(all_matched_ids.keys(), desc='Evaluating'):
+    for frame_id in tqdm(all_matched_ids, desc='Evaluating'):
         matched_ids = all_matched_ids[frame_id]
         for match_pair in matched_ids:
             gt_label = gt_data[frame_id][match_pair[0]].label
@@ -430,7 +430,7 @@ def detection_classagnostic_metrics(all_matched_ids, predicted_data):
                       dtype=np.float32)
 
     bias = 0
-    for frame_id in all_matched_ids.keys():
+    for frame_id in all_matched_ids:
         matched_ids = all_matched_ids[frame_id]
         predicted_bboxes = predicted_data[frame_id]
 
@@ -465,7 +465,7 @@ def detection_classspecific_metrics(all_matched_ids, predicted_data, gt_data, cl
     false_positives = np.ones([num_predicted_detections], dtype=np.int32)
 
     bias = 0
-    for frame_id in all_matched_ids.keys():
+    for frame_id in all_matched_ids:
         matched_ids = all_matched_ids[frame_id]
         predicted_class_positions = filtered_predicted_pos[frame_id]
         gt_bboxes = gt_data[frame_id]
@@ -474,7 +474,7 @@ def detection_classspecific_metrics(all_matched_ids, predicted_data, gt_data, cl
             if gt_bboxes[match_pair[0]].label != class_id:
                 continue
 
-            if match_pair[1] not in predicted_class_positions.keys():
+            if match_pair[1] not in predicted_class_positions:
                 continue
 
             pred_local_pos = predicted_class_positions[match_pair[1]]
@@ -660,7 +660,7 @@ def main():
         video_size = read_video_size(task[1])
         annotation, _ = load_annotation(task[0], video_size)
 
-        valid_frame_ids = annotation.keys()
+        valid_frame_ids = list(annotation)
         predicted_actions = predict_actions(task[1], valid_frame_ids,
                                             detection_net, args.in_name, args.out_name)
 

@@ -194,7 +194,6 @@ def load_pascal_annotation(index, pascal_root):
     class_to_ind = dict(zip(classes, xrange(21)))
 
     filename = osp.join(pascal_root, 'Annotations', index + '.xml')
-    # print 'Loading: {}'.format(filename)
 
     def get_data_from_tag(node, tag):
         return node.getElementsByTagName(tag)[0].childNodes[0].data
@@ -247,8 +246,8 @@ def print_info(name, params):
     """
     Output some info regarding the class
     """
-    print "{} initialized for split: {}, with bs: {}, im_shape: {}.".format(
+    print("{} initialized for split: {}, with bs: {}, im_shape: {}.".format(
         name,
         params['split'],
         params['batch_size'],
-        params['im_shape'])
+        params['im_shape']))
