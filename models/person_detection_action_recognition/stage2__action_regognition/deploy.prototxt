@@ -16805,7 +16805,7 @@ layer {
   }
   parameter_param {
     shape: {
-      dim: 3
+      dim: 5
       dim: 128
     }
     filler: {

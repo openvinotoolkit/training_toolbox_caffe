@@ -16972,10 +16972,6 @@ layer {
   top: "action/split_median_inter_class_dist"
   top: "action/split_fraction"
   top: "action/split_misclassified"
-  loss_weight: 0.03125
-  loss_weight: 0.0
-  loss_weight: 0.0
-  loss_weight: 0.0
   propagate_down: false
   propagate_down: true
   propagate_down: true
@@ -17001,9 +16997,6 @@ layer {
   top: "action/glob_push_loss/value"
   top: "action/glob_push_fraction"
   top: "action/glob_push_mean_dist"
-  loss_weight: 0.25
-  loss_weight: 0.0
-  loss_weight: 0.0
   propagate_down: false
   propagate_down: true
   propagate_down: true
@@ -17030,10 +17023,6 @@ layer {
   top: "action/local_push_fraction"
   top: "action/local_push_pos_dist"
   top: "action/local_push_neg_dist"
-  loss_weight: 0.25
-  loss_weight: 0.0
-  loss_weight: 0.0
-  loss_weight: 0.0
   propagate_down: false
   propagate_down: true
   propagate_down: true
@@ -17059,9 +17048,6 @@ layer {
   top: "action/center_loss/value"
   top: "action/intra_class_max_dist"
   top: "action/center_valid_fraction"
-  loss_weight: 0.16
-  loss_weight: 0.0
-  loss_weight: 0.0
   propagate_down: false
   propagate_down: true
   propagate_down: true
@@ -17086,9 +17072,6 @@ layer {
   top: "action/push_loss/value"
   top: "action/push_median_inter_class_dist"
   top: "action/push_fraction"
-  loss_weight: 0.25
-  loss_weight: 0.0
-  loss_weight: 0.0
   propagate_down: false
   propagate_down: true
   propagate_down: true
