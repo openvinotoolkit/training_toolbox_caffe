@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -62,7 +64,7 @@ class TestGlobPushLossLayer(unittest.TestCase):
 
     def test_forward(self):
         local_loss_values = []
-        for i in xrange(2):
+        for i in range(2):
             detection = self.detections[i]
             item = int(detection[0])
             x_pos = int(detection[9])
@@ -71,10 +73,10 @@ class TestGlobPushLossLayer(unittest.TestCase):
             invalid_mask = np.ones([3, 4], dtype=np.bool)
             invalid_mask[y_pos, x_pos] = False
 
-            for j in xrange(2):
+            for j in range(2):
                 anchor_embeddings = self.anchors[j][item]
 
-                for k in xrange(2):
+                for k in range(2):
                     center_embedding = self.centers[k].reshape([-1, 1, 1])
 
                     losses = np.sum(anchor_embeddings * center_embedding, axis=0)

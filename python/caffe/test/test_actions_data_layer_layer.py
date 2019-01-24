@@ -17,6 +17,7 @@ import shutil
 import tempfile
 import unittest
 
+from builtins import range
 from os import remove
 from os.path import join
 
@@ -45,7 +46,7 @@ def python_net_file(tasks_path, batch_size, height, width):
 
 def create_directory_with_images(height, width, num_images):
     tmp_directory = tempfile.mkdtemp()
-    for i in xrange(num_images):
+    for i in range(num_images):
         image_array = np.random.randint(low=0, high=256, size=(height, width, 3), dtype=np.uint8)
 
         file_name = join(tmp_directory, 'frame_{:06}.png'.format(i))
@@ -67,9 +68,9 @@ def create_annotation_file(num_frames, num_tracks):
                     '<attribute name="action">{}</attribute></box>'
 
     out_str = doc_begin.format(num_tracks)
-    for track_id in xrange(num_tracks):
+    for track_id in range(num_tracks):
         out_str += track_begin.format(track_id)
-        for frame_id in xrange(num_frames):
+        for frame_id in range(num_frames):
             out_str += bbox_template.format(frame_id, actions_str[np.random.randint(len(actions_str))])
         out_str += track_end
     out_str += doc_end

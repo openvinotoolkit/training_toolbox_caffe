@@ -23,6 +23,7 @@ from multiprocessing import Process, Queue
 import cv2
 import numpy as np
 from lxml import etree
+from six import itervalues
 from scipy.ndimage.filters import gaussian_filter
 
 from caffe._caffe import log as LOG
@@ -85,8 +86,8 @@ class SampleDataFromDisk(object):
             annotation = self._read_annotation(annotation_path, video_resolution, ignore_occluded,
                                                self._action_names_map, self._valid_action_ids, id_shift)
 
-            for frame_id in annotation.keys():
-                if frame_id not in image_paths.keys():
+            for frame_id in annotation:
+                if frame_id not in image_paths:
                     continue
 
                 image_path = image_paths[frame_id]
@@ -104,7 +105,7 @@ class SampleDataFromDisk(object):
                         local_class_counts[class_id] += 1
                         glob_class_counts[class_id] += 1
 
-                for class_id in local_class_counts.keys():
+                for class_id in local_class_counts:
                     if local_class_counts[class_id] > 0:
                         self._class_queues[class_id].append(frame_glob_id)
 
@@ -209,7 +210,7 @@ class SampleDataFromDisk(object):
 
         detections_by_frame_id = {}
         for track in root:
-            if 'label' not in track.attrib.keys() or track.attrib['label'] != 'person':
+            if 'label' not in track.attrib or track.attrib['label'] != 'person':
                 continue
 
             track_id = int(track.attrib['id'])
@@ -229,7 +230,7 @@ class SampleDataFromDisk(object):
 
                     action_name = bbox[bbox_attr_id].text
 
-                if action_name is None or action_name not in action_names_map.keys():
+                if action_name is None or action_name not in action_names_map:
                     continue
 
                 action_name_id = action_names_map[action_name]
@@ -382,7 +383,7 @@ class ActionsDataLayer(BaseLayer):
                     for obj in valid_objects:
                         objects_by_class[obj.action] = objects_by_class.get(obj.action, []) + [obj]
 
-                    center_class = np.random.choice(objects_by_class.keys(), 1, replace=False)[0]
+                    center_class = np.random.choice(list(objects_by_class), 1, replace=False)[0]
                     num_center_objects = len(objects_by_class[center_class])
                     center_obj_id = np.random.randint(0, num_center_objects)
                     center_obj = objects_by_class[center_class][center_obj_id]
@@ -808,10 +809,10 @@ class ActionsDataLayer(BaseLayer):
         while True:
             if ids_queue.empty():
                 class_queues = data_sampler.get_class_frame_ids()
-                min_queue_size = np.min([len(q) for q in class_queues.values()])
+                min_queue_size = np.min([len(q) for q in itervalues(class_queues)])
 
                 class_subsets = []
-                for label in class_queues.keys():
+                for label in class_queues:
                     class_frame_ids = np.copy(class_queues[label])
                     subset_ids = np.random.choice(class_frame_ids, min_queue_size, replace=False)
                     class_subsets.append(subset_ids)

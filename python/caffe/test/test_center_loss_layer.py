@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -62,7 +64,7 @@ class TestCenterLossLayer(unittest.TestCase):
 
     def test_forward(self):
         trg_loss_value = 0.0
-        for i in xrange(3):
+        for i in range(3):
             detection = self.detections[i]
             item = int(detection[0])
             anchor_id = int(detection[6])

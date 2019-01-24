@@ -158,7 +158,7 @@ class SplitLossLayer(BaseLayer):
             total_num_pairs = 0
             total_num_overlapped = 0
             total_num_incorrect = 0
-            for item_id in batch_detections.keys():
+            for item_id in batch_detections:
                 detections = batch_detections[item_id]
 
                 for i, _ in enumerate(detections):

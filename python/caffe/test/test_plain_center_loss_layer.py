@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -56,7 +58,7 @@ class TestPlainCenterLossLayer(unittest.TestCase):
 
     def test_forward(self):
         trg_loss_value = 0.0
-        for i in xrange(3):
+        for i in range(3):
             class_id = int(self.labels[i])
 
             dist = 1.0 - np.sum(self.centers[class_id] * self.embeddings[i])

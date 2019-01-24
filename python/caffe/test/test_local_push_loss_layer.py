@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -63,7 +65,7 @@ class TestLocalPushLossLayer(unittest.TestCase):
 
     def test_forward(self):
         local_loss_values = []
-        for i in xrange(3):
+        for i in range(3):
             detection = self.detections[i]
             item = int(detection[0])
             anchor_id = int(detection[6])
@@ -76,7 +78,7 @@ class TestLocalPushLossLayer(unittest.TestCase):
 
             pos_distance = 1.0 - np.sum(det_embedding * center_embedding)
 
-            for j in xrange(2):
+            for j in range(2):
                 if j == class_id:
                     continue
 

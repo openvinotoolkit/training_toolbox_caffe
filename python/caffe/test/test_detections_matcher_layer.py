@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -69,6 +71,6 @@ class TestDetectionsMatcherLayer(unittest.TestCase):
 
         gt_detection_record = [[0., 1., 0.22, 0.31, 0.25, 0.35, 0., 0., 1., 2., 1.],
                                [1., 1., 0.73, 0.22, 0.98, 0.34, 1., 1., 0., 0., 2.]]
-        for i in xrange(2):
-            for j in xrange(11):
+        for i in range(2):
+            for j in range(11):
                 self.assertAlmostEqual(matched_detections[0, 0, i, j], gt_detection_record[i][j], places=6)

@@ -144,7 +144,7 @@ class SamplingExtractorLayer(BaseLayer):
             for i in range(self._num_anchors):
                 self._embeddings.append(np.array(bottom[i + 1].data))
 
-            valid_class_ids = all_detections.keys()
+            valid_class_ids = list(all_detections)
             valid_class_ids.sort()
 
             self._samples = []

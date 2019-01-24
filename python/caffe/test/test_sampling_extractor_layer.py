@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -57,7 +59,7 @@ class TestSamplingExtractorLayer(unittest.TestCase):
 
     def test_forward(self):
         corner_embeddings = []
-        for i in xrange(2):
+        for i in range(2):
             detection = self.detections[i]
             item = int(detection[0])
             anchor_id = int(detection[6])
@@ -76,7 +78,7 @@ class TestSamplingExtractorLayer(unittest.TestCase):
         self.assertTupleEqual(predicted_embeddings.shape, (7, 5))
         self.assertTupleEqual(predicted_labels.shape, (7,))
 
-        for i in xrange(7):
+        for i in range(7):
             self.assertEqual(int(predicted_labels[i]), 0)
 
             p = predicted_embeddings[i]

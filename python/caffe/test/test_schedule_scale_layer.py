@@ -55,5 +55,5 @@ class TestScheduleScaleLayer(unittest.TestCase):
         target_values = target_values.flatten()
         predicted_values = predicted_values.flatten()
 
-        for i in xrange(len(target_values)):
+        for i, _ in enumerate(target_values):
             self.assertAlmostEqual(predicted_values[i], target_values[i], places=5)

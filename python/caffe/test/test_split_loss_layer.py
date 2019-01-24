@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -67,7 +69,7 @@ class TestSplitLossLayer(unittest.TestCase):
 
     def test_forward(self):
         embeddings = []
-        for i in xrange(2):
+        for i in range(2):
             detection = self.detections[i]
             item = int(detection[0])
             anchor_id = int(detection[6])

@@ -16,6 +16,7 @@ from builtins import range
 from collections import namedtuple
 
 import numpy as np
+from six import itervalues
 
 from caffe._caffe import log as LOG
 from caffe._caffe import Layer as BaseLayer
@@ -105,18 +106,18 @@ class CenterLossLayer(BaseLayer):
 
     @staticmethod
     def _estimate_weights(new_frequencies, smoothed_frequencies, gamma, limits):
-        for cl_id in new_frequencies.keys():
+        for cl_id in new_frequencies:
             if smoothed_frequencies[cl_id] > 0.0:
                 smoothed_frequencies[cl_id] =\
                     gamma * smoothed_frequencies[cl_id] + (1.0 - gamma) * new_frequencies[cl_id]
             else:
                 smoothed_frequencies[cl_id] = new_frequencies[cl_id]
 
-        sum_smoothed_values = np.sum([val for val in smoothed_frequencies.values() if val > 0.0])
-        normalizer = sum_smoothed_values / float(len(smoothed_frequencies.keys()))
+        sum_smoothed_values = np.sum([val for val in itervalues(smoothed_frequencies) if val > 0.0])
+        normalizer = sum_smoothed_values / float(len(smoothed_frequencies))
 
         new_weights = {}
-        for cl_id in smoothed_frequencies.keys():
+        for cl_id in smoothed_frequencies:
             new_weight = normalizer / smoothed_frequencies[cl_id] if smoothed_frequencies[cl_id] > 0.0 else 0.0
             if limits[0] is not None and new_weight < limits[0]:
                 new_weight = limits[0]
@@ -252,17 +253,17 @@ class CenterLossLayer(BaseLayer):
                 losses.append(dist)
                 valid_detections.append(det)
 
-                if det.item not in instance_counts.keys():
+                if det.item not in instance_counts:
                     instance_counts[det.item] = {}
                 local_instance_counts = instance_counts[det.item]
-                if det.id not in local_instance_counts.keys():
+                if det.id not in local_instance_counts:
                     local_instance_counts[det.id] = 0
                 local_instance_counts[det.id] += 1
 
             if self._instance_norm:
                 instance_weights = [class_weights[det.action] / float(instance_counts[det.item][det.id])
                                     for det in valid_detections]
-                num_instances = np.sum([len(counts) for counts in instance_counts.values()])
+                num_instances = np.sum([len(counts) for counts in itervalues(instance_counts)])
             else:
                 instance_weights = [class_weights[det.action] for det in valid_detections]
                 num_instances = len(valid_detections)

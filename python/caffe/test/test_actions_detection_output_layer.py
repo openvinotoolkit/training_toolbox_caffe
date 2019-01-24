@@ -17,6 +17,8 @@ import os
 import tempfile
 import unittest
 
+from builtins import range
+
 import caffe
 import numpy as np
 
@@ -69,7 +71,7 @@ class TestActionsDetectionOutputLayer(unittest.TestCase):
         out_detections = net_outputs['out_detections']
         self.assertTupleEqual(out_detections.shape, (1, 1, 2, 8))
 
-        for i in xrange(2):
+        for i in range(2):
             in_detection = self.in_detections[i]
             out_detection = out_detections[0, 0, i]
 

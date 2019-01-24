@@ -147,7 +147,7 @@ class GlobPushLossLayer(BaseLayer):
             total_num_pairs = 0
             valid_num_pairs = 0
             dist_sum = 0.0
-            for item_id in batch_detections.keys():
+            for item_id in batch_detections:
                 detections = batch_detections[item_id]
 
                 outer_mask = self._outer_class_mask(detections, height, width)

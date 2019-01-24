@@ -16,6 +16,7 @@ from builtins import range
 from collections import namedtuple
 
 import numpy as np
+from six import itervalues
 from scipy.optimize import linear_sum_assignment
 
 from caffe._caffe import log as LOG
@@ -222,7 +223,7 @@ class DetMatcherLayer(BaseLayer):
             return 1.0 - intersection_area / union_area
 
         matched_detections = {}
-        for item_id in gt_data.keys():
+        for item_id in gt_data:
             if item_id >= len(predicted_data):
                 continue
 
@@ -307,7 +308,7 @@ class DetMatcherLayer(BaseLayer):
         """
 
         records = []
-        for item_id in predictions.keys():
+        for item_id in predictions:
             matched_detections = predictions[item_id]
 
             for det in matched_detections:
@@ -405,8 +406,8 @@ class DetMatcherLayer(BaseLayer):
                 top[0].data[...] = matches_blob
 
                 if len(top) == 2:
-                    num_predictions = np.sum([len(l) for l in batch_predictions.values()])
-                    num_matches = np.sum([len(l) for l in matched_predictions.values()])
+                    num_predictions = np.sum([len(l) for l in itervalues(batch_predictions)])
+                    num_matches = np.sum([len(l) for l in itervalues(matched_predictions)])
                     top[1].data[...] = float(num_matches) / float(num_predictions) if num_predictions > 0 else 0.0
         except Exception:
             LOG('MatcherLayer exception: {}'.format(traceback.format_exc()))

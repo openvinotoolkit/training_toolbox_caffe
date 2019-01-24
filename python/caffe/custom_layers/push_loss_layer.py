@@ -88,21 +88,21 @@ class PushLossLayer(BaseLayer):
         """
 
         out_detections = {}
-        for class_id in all_detections.keys():
+        for class_id in all_detections:
             in_class_detections = all_detections[class_id]
 
             instances = {}
             for det in in_class_detections:
-                if det.instance_id not in instances.keys():
+                if det.instance_id not in instances:
                     instances[det.instance_id] = []
                 instances[det.instance_id].append(det)
 
-            if len(instances.keys()) == 0:
+            if len(instances) == 0:
                 continue
 
             detection_candidates = []
-            num_samples_per_instance = int(np.ceil(float(max_num_samples) / float(len(instances.keys()))))
-            for instance_id in instances.keys():
+            num_samples_per_instance = int(np.ceil(float(max_num_samples) / float(len(instances))))
+            for instance_id in instances:
                 instance_detections = instances[instance_id]
 
                 max_num_rand_samples = min(len(instance_detections), num_samples_per_instance)
@@ -168,7 +168,7 @@ class PushLossLayer(BaseLayer):
                                                    self._valid_action_ids, self._min_conf)
             detections = self._filter_detections(all_detections, self._max_num_samples)
 
-            classes = detections.keys()
+            classes = list(detections)
             class_pairs = [(classes[i], classes[j]) for i, _ in enumerate(classes) for j in range(i + 1, len(classes))]
 
             self._embeddings = []
