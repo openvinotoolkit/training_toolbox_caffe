@@ -1,6 +1,7 @@
 
 # TTCF: Training Toolbox for Caffe
 
+[![Build Status](http://134.191.240.124/buildStatus/icon?job=caffe-toolbox/develop/trigger)](http://134.191.240.124/job/caffe-toolbox/job/develop/job/trigger/)
 
 This is a [BVLC Caffe](https://github.com/BVLC/caffe) fork that is intended for deployment of action detection and action recognition models for smart classroom use-case. You can define own list of possible actions (see annotation file [format]() and steps for model training to change the list of actions) but this repository shows example for 3 action classes: standing, sitting and raising hand.
 
@@ -135,8 +136,8 @@ On next stage we should train the Action Recognition (AR) model which reuses det
 PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python python2 $CAFFE_ROOT/python/rename_layers.py -i pd_weights_path.cafemodel -o ar_init_weights_path.cafemodel -p "cl/"
  ```
  where `pd_weights_path.cafemodel` - weights of trained PD model (see [previous](#person-detection-training) section) and `ar_init_weights_path.cafemodel` - output path to init weights for AR model.
- 
- 2. Run single-GPU  training procedure: 
+
+ 2. Run single-GPU  training procedure:
 ```
 PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python $CAFFE_ROOT/build/tools/caffe train --gpu=GPU_ID --solver=$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/solver.prototxt --weights="pd_weights_path.cafemodel,ar_init_weights_path.cafemodel"
  ```
@@ -155,7 +156,7 @@ PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python python2 $CAFFE_ROOT/python/convert_to_
  ```
 where `action_detection_snapshot_path.caffemodel` is a selected snapshot of AR training procedure and `action_detection_inference_path.caffemodel` - path to save final model parameters.
 
- 2. Run model optimizer: 
+ 2. Run model optimizer:
 ```
 python3 mo_caffe.py -m $CAFFE_ROOT/models/person_detection_action_recognition/stage3__convert_for_inference/inference.prototxt -w action_detection_inference_path.caffemodel -n RMNet_Action_Detection
  ```
