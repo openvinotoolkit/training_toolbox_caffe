@@ -25,7 +25,7 @@ os.environ['GLOG_minloglevel'] = '2'
 import caffe
 
 
-def load_centers(network, name):
+def load_centers(network, name, eps):
     """Load values of centers from the specified network by name.
 
     :param network: Network to load center values
@@ -40,7 +40,7 @@ def load_centers(network, name):
 
     centers = params[0].data
 
-    norms = np.sqrt(np.sum(np.square(centers), axis=1, keepdims=True))
+    norms = np.sqrt(np.sum(np.square(centers), axis=1, keepdims=True) + eps)
     normalized_centers = centers / norms
 
     return normalized_centers
@@ -74,6 +74,7 @@ def main():
     parser.add_argument('--num_anchors', '-n', type=int, default=4, help='Output .caffemodel file')
     parser.add_argument('--out_prefix', '-t', type=str, default='logits/anchor',
                         help='Template name of output blobs')
+    parser.add_argument('--eps', '-e', type=float, required=False, default=1e-8, help='Normalization epsilon')
     args = parser.parse_args()
 
     assert exists(args.in_proto)
@@ -81,7 +82,7 @@ def main():
 
     net = caffe.Net(args.in_proto, args.in_weights, caffe.TEST)
 
-    centers = load_centers(net, args.centers_name)
+    centers = load_centers(net, args.centers_name, args.eps)
     conv_params = convert_to_conv_params(centers)
 
     for i in range(args.num_anchors):
