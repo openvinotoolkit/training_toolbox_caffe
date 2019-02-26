@@ -16849,24 +16849,15 @@ layer {
   }
 }
 layer {
-  name: "logits/anchor1/perm"
+  name: "out/anchor1"
   type: "Permute"
   bottom: "logits/anchor1/conv"
-  top: "logits/anchor1/perm"
+  top: "out/anchor1"
   permute_param {
     order: 0
     order: 2
     order: 3
     order: 1
-  }
-}
-layer {
-  name: "out/anchor1"
-  type: "Softmax"
-  bottom: "logits/anchor1/perm"
-  top: "out/anchor1"
-  softmax_param {
-    axis: 3
   }
 }
 
@@ -16884,24 +16875,15 @@ layer {
   }
 }
 layer {
-  name: "logits/anchor2/perm"
+  name: "out/anchor2"
   type: "Permute"
   bottom: "logits/anchor2/conv"
-  top: "logits/anchor2/perm"
+  top: "out/anchor2"
   permute_param {
     order: 0
     order: 2
     order: 3
     order: 1
-  }
-}
-layer {
-  name: "out/anchor2"
-  type: "Softmax"
-  bottom: "logits/anchor2/perm"
-  top: "out/anchor2"
-  softmax_param {
-    axis: 3
   }
 }
 
@@ -16919,24 +16901,15 @@ layer {
   }
 }
 layer {
-  name: "logits/anchor3/perm"
+  name: "out/anchor3"
   type: "Permute"
   bottom: "logits/anchor3/conv"
-  top: "logits/anchor3/perm"
+  top: "out/anchor3"
   permute_param {
     order: 0
     order: 2
     order: 3
     order: 1
-  }
-}
-layer {
-  name: "out/anchor3"
-  type: "Softmax"
-  bottom: "logits/anchor3/perm"
-  top: "out/anchor3"
-  softmax_param {
-    axis: 3
   }
 }
 
@@ -16954,24 +16927,15 @@ layer {
   }
 }
 layer {
-  name: "logits/anchor4/perm"
+  name: "out/anchor4"
   type: "Permute"
   bottom: "logits/anchor4/conv"
-  top: "logits/anchor4/perm"
+  top: "out/anchor4"
   permute_param {
     order: 0
     order: 2
     order: 3
     order: 1
-  }
-}
-layer {
-  name: "out/anchor4"
-  type: "Softmax"
-  bottom: "logits/anchor4/perm"
-  top: "out/anchor4"
-  softmax_param {
-    axis: 3
   }
 }
 
