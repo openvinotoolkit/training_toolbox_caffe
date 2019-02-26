@@ -35,6 +35,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#if defined(USE_OPENCV) && OPENCV_VERSION < 4
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#endif  // USE_OPENCV
+
 #ifndef CAFFE_UTIL_BBOX_UTIL_H_
 #define CAFFE_UTIL_BBOX_UTIL_H_
 
@@ -553,6 +559,16 @@ template <typename Dtype>
       const map<int, vector<NormalizedBBox> >& all_gt_bboxes,
       vector<vector<float> >* all_conf_loss);
 #endif  // !CPU_ONLY
+
+#if defined(USE_OPENCV) && OPENCV_VERSION < 4
+vector<cv::Scalar> GetColors(const int n);
+
+template <typename Dtype>
+void VisualizeBBox(const vector<cv::Mat>& images, const Blob<Dtype>* detections,
+                   const float threshold, const vector<cv::Scalar>& colors,
+                   const map<int, string>& label_to_display_name,
+                   const string& save_file);
+#endif  // USE_OPENCV
 
 }  // namespace caffe
 
