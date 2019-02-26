@@ -47,7 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/filler.hpp"
-#include "caffe/layers/detection_output_layer.hpp"
+#include "caffe/layers/detection_output_extended_layer.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 
@@ -56,11 +56,11 @@ namespace caffe {
 static const float eps = 1e-6;
 
 template <typename TypeParam>
-class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
+class DetectionOutputExtendedLayerTest : public MultiDeviceTest<TypeParam> {
   typedef typename TypeParam::Dtype Dtype;
 
  protected:
-  DetectionOutputLayerTest()
+  DetectionOutputExtendedLayerTest()
       : num_(2),
         num_priors_(4),
         num_classes_(2),
@@ -70,9 +70,9 @@ class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
         nms_threshold_(0.1),
         top_k_(2),
         blob_bottom_loc_(
-            new Blob<Dtype>(num_, num_priors_ * num_loc_classes_ * 4, 1, 1)),
+            new Blob<Dtype>(num_, 1, 1, num_priors_ * num_loc_classes_ * 4)),
         blob_bottom_conf_(
-            new Blob<Dtype>(num_, num_priors_ * num_classes_, 1, 1)),
+            new Blob<Dtype>(num_, 1, 1, num_priors_ * num_classes_)),
         blob_bottom_prior_(new Blob<Dtype>(num_, 2, num_priors_ * 4, 1)),
         blob_top_(new Blob<Dtype>()) {
     // Fill prior data first.
@@ -115,7 +115,7 @@ class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
     blob_top_vec_.push_back(blob_top_);
   }
 
-  virtual ~DetectionOutputLayerTest() {
+  virtual ~DetectionOutputExtendedLayerTest() {
     delete blob_bottom_loc_;
     delete blob_bottom_conf_;
     delete blob_bottom_prior_;
@@ -126,7 +126,7 @@ class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
     // Fill location offsets.
     int num_loc_classes = share_location ? 1 : this->num_classes_;
     blob_bottom_loc_->Reshape(
-        this->num_, this->num_priors_ * num_loc_classes * 4, 1, 1);
+        this->num_, 1, 1, this->num_priors_ * num_loc_classes * 4);
     Dtype* loc_data = blob_bottom_loc_->mutable_cpu_data();
     int idx = 0;
     for (int i = 0; i < this->num_; ++i) {
@@ -182,23 +182,23 @@ class DetectionOutputLayerTest : public MultiDeviceTest<TypeParam> {
   vector<Blob<Dtype>*> blob_top_vec_;
 };
 
-TYPED_TEST_CASE(DetectionOutputLayerTest, TestDtypesAndDevices);
+TYPED_TEST_CASE(DetectionOutputExtendedLayerTest, TestDtypesAndDevices);
 
-TYPED_TEST(DetectionOutputLayerTest, TestSetup) {
+TYPED_TEST(DetectionOutputExtendedLayerTest, TestSetup) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   DetectionOutputParameter* detection_output_param =
       layer_param.mutable_detection_output_param();
   detection_output_param->set_num_classes(this->num_classes_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
+  DetectionOutputExtendedLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   EXPECT_EQ(this->blob_top_->num(), 1);
   EXPECT_EQ(this->blob_top_->channels(), 1);
   EXPECT_EQ(this->blob_top_->height(), 1);
-  EXPECT_EQ(this->blob_top_->width(), 7);
+  EXPECT_EQ(this->blob_top_->width(), 10);
 }
 
-TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocation) {
+TYPED_TEST(DetectionOutputExtendedLayerTest, TestForwardShareLocation) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   DetectionOutputParameter* detection_output_param =
@@ -208,7 +208,7 @@ TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocation) {
   detection_output_param->set_background_label_id(0);
   detection_output_param->mutable_nms_param()->set_nms_threshold(
       this->nms_threshold_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
+  DetectionOutputExtendedLayer<Dtype> layer(layer_param);
 
   this->FillLocData(true);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
@@ -217,7 +217,7 @@ TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocation) {
   EXPECT_EQ(this->blob_top_->num(), 1);
   EXPECT_EQ(this->blob_top_->channels(), 1);
   EXPECT_EQ(this->blob_top_->height(), 6);
-  EXPECT_EQ(this->blob_top_->width(), 7);
+  EXPECT_EQ(this->blob_top_->width(), 10);
 
   this->CheckEqual(*(this->blob_top_), 0, "0 1 1.0 0.15 0.15 0.45 0.45");
   this->CheckEqual(*(this->blob_top_), 1, "0 1 0.8 0.55 0.15 0.85 0.45");
@@ -227,7 +227,7 @@ TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocation) {
   this->CheckEqual(*(this->blob_top_), 5, "1 1 0.0 0.25 0.25 0.55 0.55");
 }
 
-TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocationTopK) {
+TYPED_TEST(DetectionOutputExtendedLayerTest, TestForwardShareLocationTopK) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   DetectionOutputParameter* detection_output_param =
@@ -238,7 +238,7 @@ TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocationTopK) {
   detection_output_param->mutable_nms_param()->set_nms_threshold(
       this->nms_threshold_);
   detection_output_param->mutable_nms_param()->set_top_k(this->top_k_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
+  DetectionOutputExtendedLayer<Dtype> layer(layer_param);
 
   this->FillLocData(true);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
@@ -247,130 +247,11 @@ TYPED_TEST(DetectionOutputLayerTest, TestForwardShareLocationTopK) {
   EXPECT_EQ(this->blob_top_->num(), 1);
   EXPECT_EQ(this->blob_top_->channels(), 1);
   EXPECT_EQ(this->blob_top_->height(), 3);
-  EXPECT_EQ(this->blob_top_->width(), 7);
+  EXPECT_EQ(this->blob_top_->width(), 10);
 
   this->CheckEqual(*(this->blob_top_), 0, "0 1 1.0 0.15 0.15 0.45 0.45");
   this->CheckEqual(*(this->blob_top_), 1, "0 1 0.8 0.55 0.15 0.85 0.45");
   this->CheckEqual(*(this->blob_top_), 2, "1 1 0.6 0.45 0.45 0.75 0.75");
-}
-
-TYPED_TEST(DetectionOutputLayerTest, TestForwardNoShareLocation) {
-  typedef typename TypeParam::Dtype Dtype;
-  LayerParameter layer_param;
-  DetectionOutputParameter* detection_output_param =
-      layer_param.mutable_detection_output_param();
-  detection_output_param->set_num_classes(this->num_classes_);
-  detection_output_param->set_share_location(false);
-  detection_output_param->set_background_label_id(-1);
-  detection_output_param->mutable_nms_param()->set_nms_threshold(
-      this->nms_threshold_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
-
-  this->FillLocData(false);
-  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-
-  EXPECT_EQ(this->blob_top_->num(), 1);
-  EXPECT_EQ(this->blob_top_->channels(), 1);
-  EXPECT_EQ(this->blob_top_->height(), 11);
-  EXPECT_EQ(this->blob_top_->width(), 7);
-
-  this->CheckEqual(*(this->blob_top_), 0, "0 0 0.6 0.55 0.55 0.85 0.85");
-  this->CheckEqual(*(this->blob_top_), 1, "0 0 0.4 0.15 0.55 0.45 0.85");
-  this->CheckEqual(*(this->blob_top_), 2, "0 0 0.2 0.55 0.15 0.85 0.45");
-  this->CheckEqual(*(this->blob_top_), 3, "0 0 0.0 0.15 0.15 0.45 0.45");
-  this->CheckEqual(*(this->blob_top_), 4, "0 1 1.0 0.20 0.20 0.50 0.50");
-  this->CheckEqual(*(this->blob_top_), 5, "0 1 0.8 0.50 0.20 0.80 0.50");
-  this->CheckEqual(*(this->blob_top_), 6, "0 1 0.6 0.20 0.50 0.50 0.80");
-  this->CheckEqual(*(this->blob_top_), 7, "0 1 0.4 0.50 0.50 0.80 0.80");
-  this->CheckEqual(*(this->blob_top_), 8, "1 0 1.0 0.25 0.25 0.55 0.55");
-  this->CheckEqual(*(this->blob_top_), 9, "1 0 0.4 0.45 0.45 0.75 0.75");
-  this->CheckEqual(*(this->blob_top_), 10, "1 1 0.6 0.40 0.40 0.70 0.70");
-}
-
-TYPED_TEST(DetectionOutputLayerTest, TestForwardNoShareLocationTopK) {
-  typedef typename TypeParam::Dtype Dtype;
-  LayerParameter layer_param;
-  DetectionOutputParameter* detection_output_param =
-      layer_param.mutable_detection_output_param();
-  detection_output_param->set_num_classes(this->num_classes_);
-  detection_output_param->set_share_location(false);
-  detection_output_param->set_background_label_id(-1);
-  detection_output_param->mutable_nms_param()->set_nms_threshold(
-      this->nms_threshold_);
-  detection_output_param->mutable_nms_param()->set_top_k(this->top_k_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
-
-  this->FillLocData(false);
-  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-
-  EXPECT_EQ(this->blob_top_->num(), 1);
-  EXPECT_EQ(this->blob_top_->channels(), 1);
-  EXPECT_EQ(this->blob_top_->height(), 6);
-  EXPECT_EQ(this->blob_top_->width(), 7);
-
-  this->CheckEqual(*(this->blob_top_), 0, "0 0 0.6 0.55 0.55 0.85 0.85");
-  this->CheckEqual(*(this->blob_top_), 1, "0 0 0.4 0.15 0.55 0.45 0.85");
-  this->CheckEqual(*(this->blob_top_), 2, "0 1 1.0 0.20 0.20 0.50 0.50");
-  this->CheckEqual(*(this->blob_top_), 3, "0 1 0.8 0.50 0.20 0.80 0.50");
-  this->CheckEqual(*(this->blob_top_), 4, "1 0 1.0 0.25 0.25 0.55 0.55");
-  this->CheckEqual(*(this->blob_top_), 5, "1 1 0.6 0.40 0.40 0.70 0.70");
-}
-
-TYPED_TEST(DetectionOutputLayerTest, TestForwardNoShareLocationNeg0) {
-  typedef typename TypeParam::Dtype Dtype;
-  LayerParameter layer_param;
-  DetectionOutputParameter* detection_output_param =
-      layer_param.mutable_detection_output_param();
-  detection_output_param->set_num_classes(this->num_classes_);
-  detection_output_param->set_share_location(false);
-  detection_output_param->set_background_label_id(0);
-  detection_output_param->mutable_nms_param()->set_nms_threshold(
-      this->nms_threshold_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
-
-  this->FillLocData(false);
-  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-
-  EXPECT_EQ(this->blob_top_->num(), 1);
-  EXPECT_EQ(this->blob_top_->channels(), 1);
-  EXPECT_EQ(this->blob_top_->height(), 5);
-  EXPECT_EQ(this->blob_top_->width(), 7);
-
-  this->CheckEqual(*(this->blob_top_), 0, "0 1 1.0 0.20 0.20 0.50 0.50");
-  this->CheckEqual(*(this->blob_top_), 1, "0 1 0.8 0.50 0.20 0.80 0.50");
-  this->CheckEqual(*(this->blob_top_), 2, "0 1 0.6 0.20 0.50 0.50 0.80");
-  this->CheckEqual(*(this->blob_top_), 3, "0 1 0.4 0.50 0.50 0.80 0.80");
-  this->CheckEqual(*(this->blob_top_), 4, "1 1 0.6 0.40 0.40 0.70 0.70");
-}
-
-TYPED_TEST(DetectionOutputLayerTest, TestForwardNoShareLocationNeg0TopK) {
-  typedef typename TypeParam::Dtype Dtype;
-  LayerParameter layer_param;
-  DetectionOutputParameter* detection_output_param =
-      layer_param.mutable_detection_output_param();
-  detection_output_param->set_num_classes(this->num_classes_);
-  detection_output_param->set_share_location(false);
-  detection_output_param->set_background_label_id(0);
-  detection_output_param->mutable_nms_param()->set_nms_threshold(
-      this->nms_threshold_);
-  detection_output_param->mutable_nms_param()->set_top_k(this->top_k_);
-  DetectionOutputLayer<Dtype> layer(layer_param);
-
-  this->FillLocData(false);
-  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-
-  EXPECT_EQ(this->blob_top_->num(), 1);
-  EXPECT_EQ(this->blob_top_->channels(), 1);
-  EXPECT_EQ(this->blob_top_->height(), 3);
-  EXPECT_EQ(this->blob_top_->width(), 7);
-
-  this->CheckEqual(*(this->blob_top_), 0, "0 1 1.0 0.20 0.20 0.50 0.50");
-  this->CheckEqual(*(this->blob_top_), 1, "0 1 0.8 0.50 0.20 0.80 0.50");
-  this->CheckEqual(*(this->blob_top_), 2, "1 1 0.6 0.40 0.40 0.70 0.70");
 }
 
 }  // namespace caffe

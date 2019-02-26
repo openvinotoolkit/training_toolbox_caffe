@@ -502,6 +502,7 @@ message LayerParameter {
   optional ConvolutionParameter convolution_param = 106;
   optional CropParameter crop_param = 144;
   optional DataParameter data_param = 107;
+  optional DetectionEvaluateParameter detection_evaluate_param = 205;
   optional DetectionOutputParameter detection_output_param = 204;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
@@ -974,6 +975,28 @@ message DataParameter {
   optional uint32 prefetch = 10 [default = 4];
 }
 
+// Message that store parameters used by DetectionEvaluateLayer
+message DetectionEvaluateParameter {
+  // Number of classes that are actually predicted. Required!
+  optional uint32 num_classes = 1;
+  // Label id for background class. Needed for sanity check so that
+  // background class is neither in the ground truth nor the detections.
+  optional uint32 background_label_id = 2 [default = 0];
+  // Threshold for deciding true/false positive.
+  optional float overlap_threshold = 3 [default = 0.5];
+  // If true, also consider difficult ground truth for evaluation.
+  optional bool evaluate_difficult_gt = 4 [default = true];
+  // A file which contains a list of names and sizes with same order
+  // of the input DB. The file is in the following format:
+  //    name height width
+  //    ...
+  // If provided, we will scale the prediction and ground truth NormalizedBBox
+  // for evaluation.
+  optional string name_size_file = 5;
+  // The resize parameter used in converting NormalizedBBox to original image.
+  optional ResizeParameter resize_param = 6;
+}
+
 message NonMaximumSuppressionParameter {
   // Threshold to be used in nms.
   optional float nms_threshold = 1 [default = 0.3];
@@ -1011,7 +1034,7 @@ message SaveOutputParameter {
 
 // Message that store parameters used by DetectionOutputLayer
 message DetectionOutputParameter {
-  // Number of main classes to be predicted. Required!
+  // Number of classes to be predicted. Required!
   optional uint32 num_classes = 1;
   // If true, bounding box are shared among different classes.
   optional bool share_location = 2 [default = true];
@@ -1020,6 +1043,8 @@ message DetectionOutputParameter {
   optional int32 background_label_id = 3 [default = 0];
   // Parameters used for non maximum suppression.
   optional NonMaximumSuppressionParameter nms_param = 4;
+  // Parameters used for saving detection results.
+  optional SaveOutputParameter save_output_param = 5;
   // Type of coding method for bbox.
   optional PriorBoxParameter.CodeType code_type = 6 [default = CORNER];
   // If true, variance is encoded in target; otherwise we need to adjust the
@@ -1031,6 +1056,12 @@ message DetectionOutputParameter {
   // Only consider detections whose confidences are larger than a threshold.
   // If not provided, consider all boxes.
   optional float confidence_threshold = 9;
+  // If true, visualize the detection results.
+  optional bool visualize = 10 [default = false];
+  // The threshold used to visualize the detection results.
+  optional float visualize_threshold = 11;
+  // If provided, save outputs to video file.
+  optional string save_file = 12;
 }
 
 message DropoutParameter {

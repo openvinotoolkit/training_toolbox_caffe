@@ -15168,7 +15168,7 @@ layer {
 
 layer {
   name: "pd_out"
-  type: "DetectionOutput"
+  type: "DetectionOutputExtended"
   bottom: "mbox_loc1/out/conv/perm"
   bottom: "mbox_conf1/out/conv/perm/softmax/reshape"
   bottom: "mbox/priorbox"

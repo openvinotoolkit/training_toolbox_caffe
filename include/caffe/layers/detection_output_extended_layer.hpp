@@ -66,19 +66,19 @@ namespace caffe {
  * NOTE: does not implement Backwards operation.
  */
 template <typename Dtype>
-class DetectionOutputLayer : public Layer<Dtype> {
+class DetectionOutputExtendedLayer : public Layer<Dtype> {
  public:
-  explicit DetectionOutputLayer(const LayerParameter& param)
+  explicit DetectionOutputExtendedLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline const char* type() const { return "DetectionOutput"; }
-  virtual inline int MinBottomBlobs() const { return 3; }
-  virtual inline int MaxBottomBlobs() const { return 4; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
+  virtual inline const char* type() const { return "DetectionOutputExtended"; }
+  virtual inline int ExactNumBottomBlobs() const { return 3; }
+  virtual inline int MinNumTopBlobs() const { return 1; }
+  virtual inline int MaxNumTopBlobs() const { return 2; }
 
  protected:
   /**
@@ -98,8 +98,6 @@ class DetectionOutputLayer : public Layer<Dtype> {
    */
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
-  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
   /// @brief Not implemented
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
@@ -110,44 +108,30 @@ class DetectionOutputLayer : public Layer<Dtype> {
     NOT_IMPLEMENTED;
   }
 
+  /// Number of classes to detect
   int num_classes_;
+  /// Whether to share locations between differen classes
   bool share_location_;
+  /// Number of location classes (depends on share_location_ parameter)
   int num_loc_classes_;
-  int background_label_id_;
+  /// Type of bbox encoding
   CodeType code_type_;
+  /// Whether to encode variance in bbox
   bool variance_encoded_in_target_;
+  /// Max number of high confidence detections before NMS
   int keep_top_k_;
+  /// Threshold to filter low-confidence detections
   float confidence_threshold_;
-
+  /// Number of candidate detections
   int num_;
+  /// Total number of prior boxes
   int num_priors_;
-
+  /// Parameter to control FastNMS
   float nms_threshold_;
+  /// Max number of high confidence output detections
   int top_k_;
+  /// Parameter to control FastNMS
   float eta_;
-
-  bool need_save_;
-  string output_directory_;
-  string output_name_prefix_;
-  string output_format_;
-  map<int, string> label_to_name_;
-  map<int, string> label_to_display_name_;
-  vector<string> names_;
-  vector<pair<int, int> > sizes_;
-  int num_test_image_;
-  int name_count_;
-  bool has_resize_;
-  ResizeParameter resize_param_;
-
-  ptree detections_;
-
-  bool visualize_;
-  float visualize_threshold_;
-  shared_ptr<DataTransformer<Dtype> > data_transformer_;
-  string save_file_;
-  Blob<Dtype> bbox_preds_;
-  Blob<Dtype> bbox_permute_;
-  Blob<Dtype> conf_permute_;
 };
 
 }  // namespace caffe
