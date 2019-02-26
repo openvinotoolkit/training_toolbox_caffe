@@ -35,9 +35,27 @@ TransformParams = namedtuple('TransformParams', 'crop, support_bbox, aspect_rati
                                                 'expand, expand_ratio, expand_shift, expand_fill')
 IDS_SHIFT_SCALE = 1000000
 VALID_EXTENSIONS = ['png', 'jpg']
-ACTION_NAMES_MAP = {'sitting': 0, 'standing': 1, 'raising_hand': 2,
-                    'listening': 3, 'reading': 4, 'writing': 4, 'lie_on_the_desk': 4,
-                    'in_group_discussions': 5, '__undefined__': 5}
+
+STUDENT_ACTION_NAMES_MAP = {
+    'sitting': 0,
+    'standing': 1,
+    'raising_hand': 2,
+    'listening': 3,
+    'reading': 4,
+    'writing': 4,
+    'lie_on_the_desk': 4,
+    'in_group_discussions': 5,
+    '__undefined__': 5,
+}
+
+TEACHER_ACTION_NAMES_MAP = {
+    'standing': 0,
+    'speaking': 0,
+    'writing': 1,
+    'demonstrating': 2,
+    'interacting': 0,
+    '__undefined__': 3,
+}
 
 
 class SampleDataFromDisk(object):
@@ -93,6 +111,10 @@ class SampleDataFromDisk(object):
                 image_path = image_paths[frame_id]
                 gt_objects = annotation[frame_id]
                 if len(gt_objects) == 0:
+                    continue
+
+                # Skip images without annotated objectes
+                if not sum([gt_o.action != self._ignore_class_id for gt_o in gt_objects]):
                     continue
 
                 self._all_frames.append(FrameDesc(path=image_path, objects=gt_objects))
@@ -460,102 +482,105 @@ class ActionsDataLayer(BaseLayer):
         if transform is None:
             return cv2.resize(img, (trg_width, trg_height)), objects
 
-        augmented_img = img
-        augmented_objects = objects
+        try:
+            augmented_img = img
+            augmented_objects = objects
 
-        if transform.expand:
-            expanded_height = int(augmented_img.shape[0] * transform. expand_ratio)
-            expanded_width = int(augmented_img.shape[1] * transform.expand_ratio)
+            if transform.expand:
+                expanded_height = int(augmented_img.shape[0] * transform. expand_ratio)
+                expanded_width = int(augmented_img.shape[1] * transform.expand_ratio)
 
-            if transform.expand_fill == 0:
-                expanded_img = np.zeros([expanded_height, expanded_width, 3], dtype=np.uint8)
-            elif transform.expand_fill == 1:
-                color = np.array([np.random.randint(0, 256)] * 3, dtype=np.uint8)
-                expanded_img = np.full([expanded_height, expanded_width, 3], color, dtype=np.uint8)
-            elif transform.expand_fill == 2:
-                color = np.random.randint(0, 256, 3, dtype=np.uint8)
-                expanded_img = np.full([expanded_height, expanded_width, 3], color, dtype=np.uint8)
-            else:
-                expanded_img = np.random.randint(0, 256, [expanded_height, expanded_width, 3], dtype=np.uint8)
+                if transform.expand_fill == 0:
+                    expanded_img = np.zeros([expanded_height, expanded_width, 3], dtype=np.uint8)
+                elif transform.expand_fill == 1:
+                    color = np.array([np.random.randint(0, 256)] * 3, dtype=np.uint8)
+                    expanded_img = np.full([expanded_height, expanded_width, 3], color, dtype=np.uint8)
+                elif transform.expand_fill == 2:
+                    color = np.random.randint(0, 256, 3, dtype=np.uint8)
+                    expanded_img = np.full([expanded_height, expanded_width, 3], color, dtype=np.uint8)
+                else:
+                    expanded_img = np.random.randint(0, 256, [expanded_height, expanded_width, 3], dtype=np.uint8)
 
-            roi_xmin = transform.expand_shift[1]
-            roi_ymin = transform.expand_shift[0]
-            roi_xmax = roi_xmin + augmented_img.shape[1]
-            roi_ymax = roi_ymin + augmented_img.shape[0]
+                roi_xmin = transform.expand_shift[1]
+                roi_ymin = transform.expand_shift[0]
+                roi_xmax = roi_xmin + augmented_img.shape[1]
+                roi_ymax = roi_ymin + augmented_img.shape[0]
 
-            expanded_img[roi_ymin:roi_ymax, roi_xmin:roi_xmax] = augmented_img
-            augmented_img = expanded_img
+                expanded_img[roi_ymin:roi_ymax, roi_xmin:roi_xmax] = augmented_img
+                augmented_img = expanded_img
 
-            expand_scale = 1.0 / transform.expand_ratio
-            expand_shift = (float(transform.expand_shift[0]) / float(expanded_height),
-                            float(transform.expand_shift[1]) / float(expanded_width))
+                expand_scale = 1.0 / transform.expand_ratio
+                expand_shift = (float(transform.expand_shift[0]) / float(expanded_height),
+                                float(transform.expand_shift[1]) / float(expanded_width))
 
-            expanded_objects = []
-            for obj in augmented_objects:
-                expanded_objects.append(BBox(track_id=obj.track_id,
-                                             action=obj.action,
-                                             xmin=expand_shift[1] + expand_scale * obj.xmin,
-                                             ymin=expand_shift[0] + expand_scale * obj.ymin,
-                                             xmax=expand_shift[1] + expand_scale * obj.xmax,
-                                             ymax=expand_shift[0] + expand_scale * obj.ymax,
-                                             occluded=obj.occluded))
-            augmented_objects = expanded_objects
+                expanded_objects = []
+                for obj in augmented_objects:
+                    expanded_objects.append(BBox(track_id=obj.track_id,
+                                                 action=obj.action,
+                                                 xmin=expand_shift[1] + expand_scale * obj.xmin,
+                                                 ymin=expand_shift[0] + expand_scale * obj.ymin,
+                                                 xmax=expand_shift[1] + expand_scale * obj.xmax,
+                                                 ymax=expand_shift[0] + expand_scale * obj.ymax,
+                                                 occluded=obj.occluded))
+                augmented_objects = expanded_objects
 
-        if transform.crop:
-            src_height, src_width = augmented_img.shape[:2]
-            crop_bbox = _fit_bbox(transform.support_bbox, transform.aspect_ratio, [src_height, src_width],
-                                  delta_factor=self.crop_center_fraction_)
+            if transform.crop:
+                src_height, src_width = augmented_img.shape[:2]
+                crop_bbox = _fit_bbox(transform.support_bbox, transform.aspect_ratio, [src_height, src_width],
+                                      delta_factor=self.crop_center_fraction_)
 
-            crop_height = crop_bbox[3] - crop_bbox[1]
-            crop_width = crop_bbox[2] - crop_bbox[0]
+                crop_height = crop_bbox[3] - crop_bbox[1]
+                crop_width = crop_bbox[2] - crop_bbox[0]
 
-            augmented_img = augmented_img[crop_bbox[1]:crop_bbox[3], crop_bbox[0]:crop_bbox[2]]
-            augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
+                augmented_img = augmented_img[crop_bbox[1]:crop_bbox[3], crop_bbox[0]:crop_bbox[2]]
+                augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
-            cropped_objects = []
-            for obj in augmented_objects:
-                obj_xmin = np.maximum(0, int(obj.xmin * src_width)) - crop_bbox[0]
-                obj_ymin = np.maximum(0, int(obj.ymin * src_height)) - crop_bbox[1]
-                obj_xmax = np.minimum(int(obj.xmax * src_width), src_width) - crop_bbox[0]
-                obj_ymax = np.minimum(int(obj.ymax * src_height), src_height) - crop_bbox[1]
+                cropped_objects = []
+                for obj in augmented_objects:
+                    obj_xmin = np.maximum(0, int(obj.xmin * src_width)) - crop_bbox[0]
+                    obj_ymin = np.maximum(0, int(obj.ymin * src_height)) - crop_bbox[1]
+                    obj_xmax = np.minimum(int(obj.xmax * src_width), src_width) - crop_bbox[0]
+                    obj_ymax = np.minimum(int(obj.ymax * src_height), src_height) - crop_bbox[1]
 
-                if obj_xmin < 0 and obj_xmax > crop_width and obj_ymin < 0 and obj_ymax > crop_height or \
-                   obj_xmax <= 0 or obj_ymax <= 0 or obj_xmin >= crop_width or obj_ymin >= crop_height:
-                    continue
+                    if obj_xmin < 0 and obj_xmax > crop_width and obj_ymin < 0 and obj_ymax > crop_height or \
+                       obj_xmax <= 0 or obj_ymax <= 0 or obj_xmin >= crop_width or obj_ymin >= crop_height:
+                        continue
 
-                out_obj_xmin = float(np.maximum(0, obj_xmin)) / float(crop_width)
-                out_obj_ymin = float(np.maximum(0, obj_ymin)) / float(crop_height)
-                out_obj_xmax = float(np.minimum(obj_xmax, crop_width)) / float(crop_width)
-                out_obj_ymax = float(np.minimum(obj_ymax, crop_height)) / float(crop_height)
+                    out_obj_xmin = float(np.maximum(0, obj_xmin)) / float(crop_width)
+                    out_obj_ymin = float(np.maximum(0, obj_ymin)) / float(crop_height)
+                    out_obj_xmax = float(np.minimum(obj_xmax, crop_width)) / float(crop_width)
+                    out_obj_ymax = float(np.minimum(obj_ymax, crop_height)) / float(crop_height)
 
-                out_obj_height = out_obj_ymax - out_obj_ymin
-                out_obj_width = out_obj_xmax - out_obj_xmin
+                    out_obj_height = out_obj_ymax - out_obj_ymin
+                    out_obj_width = out_obj_xmax - out_obj_xmin
 
-                if out_obj_height < self.min_bbox_size_ or out_obj_width < self.min_bbox_size_:
-                    continue
+                    if out_obj_height < self.min_bbox_size_ or out_obj_width < self.min_bbox_size_:
+                        continue
 
-                cropped_objects.append(BBox(track_id=obj.track_id,
-                                            action=obj.action,
-                                            xmin=out_obj_xmin, ymin=out_obj_ymin,
-                                            xmax=out_obj_xmax, ymax=out_obj_ymax,
-                                            occluded=obj.occluded))
-            augmented_objects = cropped_objects
+                    cropped_objects.append(BBox(track_id=obj.track_id,
+                                                action=obj.action,
+                                                xmin=out_obj_xmin, ymin=out_obj_ymin,
+                                                xmax=out_obj_xmax, ymax=out_obj_ymax,
+                                                occluded=obj.occluded))
+                augmented_objects = cropped_objects
 
-        if augmented_img.shape[:2] != (trg_height, trg_width):
-            augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
+            if augmented_img.shape[:2] != (trg_height, trg_width):
+                augmented_img = cv2.resize(augmented_img, (trg_width, trg_height))
 
-        if transform.mirror:
-            augmented_img = augmented_img[:, ::-1, :]
+            if transform.mirror:
+                augmented_img = augmented_img[:, ::-1, :]
 
-            mirrored_objects = []
-            for obj in augmented_objects:
-                mirrored_objects.append(BBox(track_id=obj.track_id,
-                                             action=obj.action,
-                                             xmin=1.0 - obj.xmax, ymin=obj.ymin,
-                                             xmax=1.0 - obj.xmin, ymax=obj.ymax,
-                                             occluded=obj.occluded))
+                mirrored_objects = []
+                for obj in augmented_objects:
+                    mirrored_objects.append(BBox(track_id=obj.track_id,
+                                                 action=obj.action,
+                                                 xmin=1.0 - obj.xmax, ymin=obj.ymin,
+                                                 xmax=1.0 - obj.xmin, ymax=obj.ymax,
+                                                 occluded=obj.occluded))
 
-            augmented_objects = mirrored_objects
+                augmented_objects = mirrored_objects
+        except Exception:
+            return cv2.resize(img, (trg_width, trg_height)), objects
 
         return augmented_img, augmented_objects
 
@@ -702,10 +727,19 @@ class ActionsDataLayer(BaseLayer):
         self._valid_action_ids = layer_params['valid_action_ids']
         assert len(self._valid_action_ids) > 0
 
+        self.action_type = layer_params.get('action_type', 'student')
+
+        if self.action_type == 'student':
+            self.action_names_map = STUDENT_ACTION_NAMES_MAP
+        elif self.action_type == 'teacher':
+            self.action_names_map = TEACHER_ACTION_NAMES_MAP
+
+        assert self.action_names_map is not None
+
         self._ignore_class_id = layer_params['ignore_class_id']
         self.ignore_occluded_ = layer_params['ignore_occluded'] if 'ignore_occluded' in layer_params else True
         data_sampler = SampleDataFromDisk(layer_params['tasks'], self.ignore_occluded_,
-                                          ACTION_NAMES_MAP, self._valid_action_ids, self._ignore_class_id)
+                                          self.action_names_map, self._valid_action_ids, self._ignore_class_id)
         self.batch_size_ = layer_params['batch']
         self._set_data(data_sampler)
 
@@ -744,7 +778,7 @@ class ActionsDataLayer(BaseLayer):
             assert 0.0 <= self.max_brightness_prob_ <= 1.0
 
         self.down_up_scale_ = layer_params['down_up_scale'] if 'down_up_scale' in layer_params else False
-        if self.gamma_:
+        if self.down_up_scale_:
             self.min_scale_ = layer_params['min_scale'] if 'min_scale' in layer_params else 0.4
             self.down_up_scale_prob_ =\
                 layer_params['down_up_scale_prob'] if 'down_up_scale_prob' in layer_params else 0.1
