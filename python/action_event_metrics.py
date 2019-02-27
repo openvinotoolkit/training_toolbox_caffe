@@ -692,9 +692,9 @@ def main():
     parser.add_argument('--compute_mode', type=str, choices=['CPU', 'GPU'], default='GPU',
                         help='Caffe compute mode: CPU or GPU')
     parser.add_argument('--gpu_id', '-g', type=int, default=0, choices=range(8), help='GPU id')
-    parser.add_argument('--min_detection_conf', '-dc', type=float, default=0.1, help='Min detection conf')
+    parser.add_argument('--min_detection_conf', '-dc', type=float, default=0.4, help='Min detection conf')
     parser.add_argument('--min_action_conf', '-ac', type=float, default=0.7, help='Min action conf')
-    parser.add_argument('--min_action_length', type=float, default=0.0, help='Min action duration (s)')
+    parser.add_argument('--min_action_length', type=float, default=1.0, help='Min action duration (s)')
     parser.add_argument('--window_size', type=float, default=1.0, help='Smooth window size (s)')
     parser.add_argument('--out_dir', type=str, default='', help='Path to save smoothed annotation')
     args = parser.parse_args()

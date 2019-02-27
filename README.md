@@ -143,9 +143,16 @@ PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python $CAFFE_ROOT/build/tools/caffe train --
  ```
 
 ### Action Recognition model evaluation
-To evaluate the quality of trained Action Recognition model on your test data you can use provided script. To do this you need the file with testing tasks in the same format as for training stage (see [this](#train-tasks-file-format) section).
+To evaluate the quality of trained Action Recognition model on your test data you can use provided script. To do this you need the file with testing tasks in the same format as for training stage (see [this](#train-tasks-file-format) section). The model can be evaluated in two modes:
+
+1. Frame independent evaluation:
 ```
 PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python python2 $CAFFE_ROOT/python/action_metrics.py -t path_to_testing_tasks.txt -p $CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt -w action_detection_best_snapshot_path.caffemodel
+ ```
+
+2. Event-based evaluation:
+```
+PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python python2 $CAFFE_ROOT/python/action_event_metrics.py -t path_to_testing_tasks.txt -p $CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/deploy.prototxt -w action_detection_best_snapshot_path.caffemodel
  ```
 
 ### Conversion to MO-compatible format
