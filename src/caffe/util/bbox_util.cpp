@@ -2149,7 +2149,7 @@ void ComputeAP(const vector<pair<float, int> >& tp, const int num_pos,
   }
 }
 
-#ifdef USE_OPENCV
+#if defined(USE_OPENCV) && OPENCV_VERSION < 4
 cv::Scalar HSV2RGB(const float h, const float s, const float v) {
   const int h_i = static_cast<int>(h * 6);
   const float f = h * 6 - h_i;

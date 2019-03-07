@@ -35,7 +35,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifdef USE_OPENCV
+#if defined(USE_OPENCV) && OPENCV_VERSION < 4
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -560,7 +560,7 @@ template <typename Dtype>
       vector<vector<float> >* all_conf_loss);
 #endif  // !CPU_ONLY
 
-#ifdef USE_OPENCV
+#if defined(USE_OPENCV) && OPENCV_VERSION < 4
 vector<cv::Scalar> GetColors(const int n);
 
 template <typename Dtype>

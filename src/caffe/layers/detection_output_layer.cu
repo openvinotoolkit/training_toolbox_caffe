@@ -326,7 +326,7 @@ void DetectionOutputLayer<Dtype>::Forward_gpu(
     }
   }
   if (visualize_) {
-#ifdef USE_OPENCV
+#if defined(USE_OPENCV) && OPENCV_VERSION < 4
     vector<cv::Mat> cv_imgs;
     this->data_transformer_->TransformInv(bottom[3], &cv_imgs);
     vector<cv::Scalar> colors = GetColors(label_to_display_name_.size());
