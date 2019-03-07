@@ -11,24 +11,26 @@
  limitations under the License.
 """
 
-from tqdm import tqdm
-from lxml import etree
-import cv2
-import argparse
-import math
-import numpy as np
 import os
+import argparse
+from tqdm import tqdm
+import cv2
+from lxml import etree
 
 from utils.dataset_xml_reader import read_annotation
 
 def make_dir(path):
+    """ Create a directory """
     try:
-        import os
         os.makedirs(path)
-    except:
+    except Exception:
         pass
 
+# pylint: disable=redefined-argument-from-local
 def indent(elem, level=0):
+    """
+    Add indentation
+    """
     i = "\n" + level * "  "
     if len(elem):
         if not elem.text or not elem.text.strip():
@@ -43,18 +45,21 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def process_frame_annotation(frame_annotation, image, size_thresh, is_train):
-    for obj in frame_annotation:
+def process_frame_annotation(frame_annotation, image, root, size_thresh, is_train, scale_x, scale_y, show):
+    """
+    Parse image annotation
+    """
+    for frame_obj in frame_annotation:
         write_header = False
-        for i in obj.keys():
-            if (i == "bbox"):
-                bbox = obj[i].split()
+        for i in frame_obj.keys():
+            if i == "bbox":
+                bbox = frame_obj[i].split()
                 xmin = float(bbox[0])
                 ymin = float(bbox[1])
-                w = float(bbox[2])
-                h = float(bbox[3])
-                xmax = xmin + w
-                ymax = ymin + h
+                width = float(bbox[2])
+                height = float(bbox[3])
+                xmax = xmin + width
+                ymax = ymin + height
                 xmin = xmin / scale_x
                 ymin = ymin / scale_y
                 xmax = xmax / scale_x
@@ -67,27 +72,30 @@ def process_frame_annotation(frame_annotation, image, size_thresh, is_train):
                 ymin = int(round(ymin - 0.49))
                 xmax = int(round(xmax + 0.49))
                 ymax = int(round(ymax + 0.49))
-                if (xmax > image.shape[1] - 1):
+                if xmax > image.shape[1] - 1:
                     xmax = image.shape[1] - 1
-                if (ymax > image.shape[0] - 1):
+                if ymax > image.shape[0] - 1:
                     ymax = image.shape[0] - 1
 
-                if (write_header == False):
-                    object = etree.SubElement(root, "object")
-                    etree.SubElement(object, "name").text = 'face'#obj['label']
-                    etree.SubElement(object, "difficult").text = "0"
+                if not write_header:
+                    obj = etree.SubElement(root, "object")
+                    etree.SubElement(obj, "name").text = 'face'
+                    etree.SubElement(obj, "difficult").text = "0"
                     write_header = True
 
-                bndbox = etree.SubElement(object, "bndbox")
+                bndbox = etree.SubElement(obj, "bndbox")
                 etree.SubElement(bndbox, "xmin").text = str(xmin)
                 etree.SubElement(bndbox, "ymin").text = str(ymin)
                 etree.SubElement(bndbox, "xmax").text = str(xmax)
                 etree.SubElement(bndbox, "ymax").text = str(ymax)
 
-                if args.show:
+                if show:
                     cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (128, 0, 255))
 
-if __name__ == '__main__':
+def main():
+    """
+    Convert xml annotation to list of annotations per image appropriate for ssd
+    """
     parser = argparse.ArgumentParser(description='',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--ssd_path', default='', type=str)
@@ -99,8 +107,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     subsets = ['wider_train', 'wider_val']
-    annotations = { subsets[0] : read_annotation(args.xml_path_train),
-                    subsets[1] : read_annotation(args.xml_path_val) }
+    annotations = {subsets[0] : read_annotation(args.xml_path_train),
+                   subsets[1] : read_annotation(args.xml_path_val)}
 
     image_width = args.net_res[0]
     image_height = args.net_res[1]
@@ -120,13 +128,13 @@ if __name__ == '__main__':
 
         annotation = annotations[subset]
 
-        for i in tqdm(range(len(annotation)), desc = 'Processing ' + subset):
+        for i in tqdm(range(len(annotation)), desc='Processing ' + subset):
             try:
                 frame_annotation = annotation[i]
-            except KeyError, e:
-                print(e)
+            except KeyError as ex:
+                print ex
 
-            if (len(frame_annotation) == 0):
+            if len(frame_annotation) == 0:
                 continue
 
             root = etree.Element("annotation")
@@ -150,12 +158,21 @@ if __name__ == '__main__':
             etree.SubElement(size, "width").text = str(image_width)
             etree.SubElement(size, "height").text = str(image_height)
 
-            process_frame_annotation(frame_annotation, image, args.size_thresh, subset == 'wider_train')
-            et = etree.ElementTree(root)
-            indent(et.getroot())
-            et.write(os.path.join(args.ssd_path, annotation_name))
+            process_frame_annotation(frame_annotation,
+                                     image,
+                                     root,
+                                     args.size_thresh,
+                                     subset == 'wider_train',
+                                     scale_x,
+                                     scale_y,
+                                     args.show)
+            eltree = etree.ElementTree(root)
+            indent(eltree.getroot())
+            eltree.write(os.path.join(args.ssd_path, annotation_name))
 
             if args.show:
                 cv2.imshow("test", image)
                 cv2.waitKey(1000)
 
+if __name__ == '__main__':
+    main()

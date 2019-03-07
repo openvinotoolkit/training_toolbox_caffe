@@ -11,12 +11,13 @@
  limitations under the License.
 """
 
-import numpy as np
 from collections import namedtuple
 from bisect import bisect
 from tqdm import tqdm
+import numpy as np
 
 
+# pylint: disable=invalid-name
 def voc_ap(recall, precision, use_07_metric=False):
     """ ap = voc_ap(rec, prec, [use_07_metric])
     Compute VOC AP given precision and recall.
@@ -52,15 +53,22 @@ def voc_ap(recall, precision, use_07_metric=False):
 
 
 def miss_rate(miss_rates, fppis, fppi_level=0.1):
+    """
+    Count miss rate
+    """
     position = bisect(fppis, fppi_level)
     p1 = position - 1
     p2 = position if position < len(miss_rates) else p1
     return 0.5 * (miss_rates[p1] + miss_rates[p2])
 
 
+# pylint: disable=invalid-unary-operand-type
 def evaluate_detections(ground_truth, predictions, class_name, overlap_threshold=0.5,
                         allow_multiple_matches_per_ignored=True,
                         verbose=True):
+    """
+    Evaluate detections
+    """
     Detection = namedtuple('Detection', ['image', 'bbox', 'score', 'gt_match'])
     GT = namedtuple('GroundTruth', ['bbox', 'is_matched', 'is_ignored'])
     detections = [Detection(image=img_pred.image_path,
@@ -143,7 +151,7 @@ def evaluate_detections(ground_truth, predictions, class_name, overlap_threshold
     if debug_visualization:
         for im, bboxes_gt in gts.iteritems():
             import cv2
-            print(im)
+            print im
             image = cv2.imread(im)
             image_gt = np.copy(image)
             for b in bboxes_gt.bbox:
@@ -172,7 +180,7 @@ def evaluate_detections(ground_truth, predictions, class_name, overlap_threshold
     recall = tp / float(total_positives_num)
     # Avoid divide by zero in case the first detection matches an ignored ground truth.
     precision = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)
-    miss_rate = 1.0 - recall
+    missrate = 1.0 - recall
     fppi = fp / float(len(gts))
 
-    return recall, precision, miss_rate, fppi
+    return recall, precision, missrate, fppi

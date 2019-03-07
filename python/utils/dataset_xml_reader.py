@@ -11,15 +11,18 @@
  limitations under the License.
 """
 
-from tqdm import tqdm
-from lxml import etree
-import numpy as np
 import re
 import itertools
 import six
+import numpy as np
+from tqdm import tqdm
+from lxml import etree
 
-
+# pylint: disable=old-style-class
 class ImageAnnotation:
+    """
+    Class for image annotation
+    """
     def __init__(self, image_path, objects=None, ignore_regs=None):
         self.image_path = image_path
         self.objects = objects if objects else []
@@ -31,17 +34,21 @@ class ImageAnnotation:
     def __getitem__(self, item):
         return self.objects[item]
 
-
 def bbox_to_string(bbox):
+    """ Store bbox coordinated to string"""
     return ' '.join([str(int(float(coord))) for coord in bbox])
 
-
+# pylint: disable=invalid-name
 def is_empty_bbox(x, y, w, h):
+    """ Check if the bbox is empty """
     bbox = np.asarray([x, y, w, h])
     return np.any(bbox == -1)
 
 
 def write_annotation(annotation, filename, is_canonical=False):
+    """
+    Write annotation
+    """
     root = etree.Element('opencv_storage')
 
     for frame in tqdm(sorted(annotation, key=lambda x: annotation[x].image_path), desc='Converting to ' + filename):
@@ -70,6 +77,9 @@ def write_annotation(annotation, filename, is_canonical=False):
 
 
 def read_object_info(xml_root):
+    """
+    Read objects
+    """
     obj = {}
     tags = np.unique([element.tag for element in xml_root])
     for tag in tags:
@@ -81,6 +91,9 @@ def read_object_info(xml_root):
 
 
 def convert_object_info(converters, obj_info):
+    """
+    Convert object information
+    """
     for key, transform in converters.iteritems():
         if key in obj_info:
             obj_info[key] = transform(obj_info[key])
@@ -88,17 +101,22 @@ def convert_object_info(converters, obj_info):
 
 
 def chunkwise(t, size=2):
+    """ Get a chunk """
     it = iter(t)
     return itertools.izip(*[it]*size)
 
 
 def read_regions(text):
+    """ Read regions """
     if text is None:
         return None
     return [list(val) for val in list(chunkwise(map(int, text.split(" ")), 4))]
 
 
 def read_annotation(filename):
+    """
+    Read annotation
+    """
     tree = etree.parse(filename)
     root = tree.getroot()
 

@@ -11,26 +11,18 @@
  limitations under the License.
 """
 
-from utils.dataset_xml_reader import read_annotation, write_annotation, ImageAnnotation
-
-import argparse
 import os
-import cv2
 import sys
-import numpy as np
-import caffe
-
-from tqdm import tqdm
-import colorsys
 import time
 
+import colorsys
+import argparse
+from tqdm import tqdm
+import numpy as np
+import cv2
+import caffe
 
-def get_spaced_colors(n):
-    max_value = 16581375  # 255**3
-    interval = int(max_value / n)
-    colors = [hex(I)[2:].zfill(6) for I in range(0, max_value, interval)]
-
-    return [(int(i[:2], 16), int(i[2:4], 16), int(i[4:], 16)) for i in colors]
+from utils.dataset_xml_reader import read_annotation, write_annotation, ImageAnnotation
 
 def parse_args():
     """
@@ -59,15 +51,20 @@ def parse_args():
         parser.print_help()
         sys.exit(1)
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
-def preprocess_image(im, resize_to, means, scale):
-
+def preprocess_image(img, resize_to, means, scale):
+    """
+    Preprocess image
+    :param resize_to: output size
+    :param mean: mean
+    :param scale: scale
+    :return: preprocessed image
+    """
     if resize_to[0] > 0 and resize_to[1] > 0:
-        im_resized = cv2.resize(im, resize_to)
+        im_resized = cv2.resize(img, resize_to)
     else:
-        im_resized = im
+        im_resized = img
 
     im_resized = im_resized.astype(np.float32)
 
@@ -80,14 +77,17 @@ def preprocess_image(im, resize_to, means, scale):
     im_transposed = im_resized.transpose((2, 0, 1))
     return im_transposed
 
-
-if __name__ == '__main__':
+# pylint: disable=deprecated-lambda
+def main():
+    """
+    Get found detections and store them in output xml file
+    """
     args = parse_args()
     caffe.set_mode_gpu()
     caffe.set_device(args.gpu)
 
-    print('Called with args:')
-    print(args)
+    print 'Called with args:'
+    print args
 
     net = caffe.Net(args.prototxt, args.caffemodel, caffe.TEST)
     net.name = os.path.splitext(os.path.basename(args.caffemodel))[0]
@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
     scale = args.scale
 
-    print ('reading annotation...')
+    print 'reading annotation...'
     annotation = read_annotation(args.gt)
 
     detections = dict()
@@ -109,26 +109,26 @@ if __name__ == '__main__':
     visualize = args.delay > -1
 
     if visualize:
-        N = len(labels)
-        HSV_tuples = [(x * 1.0 / N, 0.5, 0.5) for x in range(N)]
-        RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x) * 255, HSV_tuples)
-        colors = [(255 * x[0], 255* x[1], 255 * x[2]) for x in RGB_tuples]
+        num_labels = len(labels)
+        hsv_tuples = [(x * 1.0 / num_labels, 0.5, 0.5) for x in range(num_labels)]
+        rgb_tuples = map(lambda x: colorsys.hsv_to_rgb(*x) * 255, hsv_tuples)
+        colors = [(255 * x[0], 255* x[1], 255 * x[2]) for x in rgb_tuples]
 
-    print ('running detector')
+    print 'running detector'
 
     times = []
     for frame in tqdm(annotation):
 
         # image reading
         image_path = annotation[frame].image_path
-        im = cv2.imread(image_path)
+        img = cv2.imread(image_path)
 
-        if im is None:
+        if img is None:
             print >> sys.stderr, "Can't load", image_path
 
         # image resizing
-        orig_size = (im.shape[1], im.shape[0])
-        im_transposed = preprocess_image(im, resize_to, means, scale)
+        orig_size = (img.shape[1], img.shape[0])
+        im_transposed = preprocess_image(img, resize_to, means, scale)
         net.blobs['data'].reshape(1, 3, im_transposed.shape[1], im_transposed.shape[2])
 
         # forward pass
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         frame_detections = ImageAnnotation(image_path, [])
 
         for det in res:
-            _, label, score, xmin, ymin, xmax, ymax  = det
+            _, label, score, xmin, ymin, xmax, ymax = det
 
             label = int(label)
 
@@ -157,23 +157,26 @@ if __name__ == '__main__':
             ymax *= orig_size[1]
 
             rect = ' '.join([str(int(round(x))) for x in [xmin, ymin, xmax - xmin, ymax - ymin]])
-            object = {'bbox': rect, 'score': score, 'type': labels[label]}
+            obj = {'bbox': rect, 'score': score, 'type': labels[label]}
 
-            frame_detections.objects += [object]
+            frame_detections.objects += [obj]
 
             if visualize:
                 if score > 0.0:
                     color = colors[label]
-                    cv2.rectangle(im, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 2)
+                    cv2.rectangle(img, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 2)
                     text = labels[label][:3] + ": " + str(round(score*100) * 0.01)
-                    cv2.putText(im, text, (int(xmin), int(ymin)), cv2.FONT_HERSHEY_COMPLEX, 1, color, 2)
+                    cv2.putText(img, text, (int(xmin), int(ymin)), cv2.FONT_HERSHEY_COMPLEX, 1, color, 2)
 
-        detections[frame]=frame_detections
+        detections[frame] = frame_detections
 
         if visualize:
-            cv2.imshow('image', im)
+            cv2.imshow('image', img)
             cv2.waitKey(args.delay)
 
-    print 'Mean forward pass time', np.mean(times)
+    print('Mean forward pass time', np.mean(times))
 
     write_annotation(detections, args.det)
+
+if __name__ == '__main__':
+    main()
