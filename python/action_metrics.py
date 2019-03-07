@@ -535,6 +535,9 @@ def calc_mr_ap(scores, true_positives, false_positives, num_gt, num_images, fppi
 
         return 0.5 * (miss_rates[left_position] + miss_rates[right_position])
 
+    if len(true_positives) == 0 or np.sum(true_positives) == 0:
+        return 1.0, 0.0
+
     sorted_ind = np.argsort(-scores)
     fp_sorted = false_positives[sorted_ind]
     tp_sorted = true_positives[sorted_ind]
@@ -696,7 +699,7 @@ def main():
                                   if len([True for b in bbox_list if b.label == class_id]) > 0]
             class_pred_image_ids = [img_id for img_id, bbox_list in iteritems(predicted_actions)
                                     if len([True for b in bbox_list if b.label == class_id]) > 0]
-            class_num_images = np.sum(np.unique(class_gt_image_ids + class_pred_image_ids))
+            class_num_images = np.sum(len(np.unique(class_gt_image_ids + class_pred_image_ids)))
 
             class_mr, class_ap = calc_mr_ap(class_scores, class_tp, class_fp, class_num_gt_bboxes, class_num_images)
             print('   {}: AP: {:.2f} miss_rate@0.1: {:.2f}'

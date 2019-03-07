@@ -220,7 +220,7 @@ class DetMatcherLayer(BaseLayer):
             overlaps = intersection_area / union_area
             overlaps[np.less_equal(union_area, 0.0)] = 0.0
 
-            return 1.0 - intersection_area / union_area
+            return 1.0 - overlaps
 
         matched_detections = {}
         for item_id in gt_data:

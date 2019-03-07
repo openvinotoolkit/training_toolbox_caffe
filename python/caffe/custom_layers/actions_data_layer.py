@@ -134,6 +134,13 @@ class SampleDataFromDisk(object):
                 total_frames += 1
                 total_objects += len(gt_objects)
 
+        for class_id in self._class_queues:
+            if class_id == ignore_class_id:
+                continue
+
+            if len(self._class_queues[class_id]) == 0:
+                raise Exception('Cannot find frames with {} action label'.format(class_id))
+
         LOG('DataLayer stats: loaded {} frames with {} objects.'.format(total_frames, total_objects))
         self._print_stat(glob_class_counts, self._class_queues, self._ignore_class_id)
 

@@ -15,14 +15,15 @@ If you want to make a contribution please follow [the guideline](CONTRIBUTING.md
   ```Shell
   git clone https://github.com/opencv/training_toolbox_caffe.git caffe
   cd caffe
-  git checkout master
+  git checkout develop
   ```
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
   ```Shell
+  sudo pip install -r $CAFFE_ROOT/python/requirements.txt
   mkdir build && cd build
   cmake ..
   make -j8
-  # Make sure to include $CAFFE_ROOT/python to your PYTHONPATH.
+  export PYTHONPATH=$PYTHONPATH:$CAFFE_ROOT/python
   # (Optional)
   make runtest -j8
   make pytest
