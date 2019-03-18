@@ -65,7 +65,10 @@ The train procedure for action detection&recognition model consists of two consi
  3. [Action Recognition model evaluation](#action-recognition-model-evaluation)
  4. [Conversion to MO-compatible format](#conversion-to-mo-compatible-format)
 
-**Note 1**: you can skip the first stage (training PD) and significantly speedup the second stage (training AR) by initializing your model from our distributed  `.caffemodel` snapshot:  `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/init_weights.caffemodel`
+
+**Note 1**: To significantly speedup training you can initialize your model from our distributed `.caffemodel` snapshots:
+ 1. `$CAFFE_ROOT/models/person_detection_action_recognition/stage1__person_detector/person_detection_0022.caffemodel` - for training Person Detection model
+ 2. `$CAFFE_ROOT/models/person_detection_action_recognition/stage2__action_regognition/action_detection_0005.caffemodel` - for training Action Detection model
 
 **Note 2**: if you want to change the list of supported actions follow next steps:
 
