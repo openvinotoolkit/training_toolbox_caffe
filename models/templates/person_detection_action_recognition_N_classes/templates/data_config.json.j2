@@ -1,0 +1,23 @@
+{
+  "batch": 4,
+  "tasks": "{{ tasks }}",
+  "height": 400,
+  "width": 680,
+  "ignore_occluded": false,
+  "num_data_fillers": 2,
+  "data_queue_size": 20,
+  "gamma": true,
+  "delta": 0.1,
+  "mirror": true,
+  "down_up_scale": true,
+  "noise": false,
+  "salt_pepper": false,
+  "free_weight": 0.1,
+  "expand_weight": 1.0,
+  "crop_weight": 1.0,
+  "use_attribute": "action",
+  "valid_class_ids": {{ valid_classes_ids }},
+  "ignore_class_id": {{ ignore_class_id }},
+  "class_names_map": {{ class_names_map }},
+  "valid_class_names": {{ valid_class_names }}
+}

@@ -18,12 +18,12 @@ layer {
     }
   }
   data_param {
-    source: "path_to_widerface/lmdb/wider_wider_val_lmdb"
+    source: "<path_to_widerface>/lmdb/wider_wider_val_lmdb"
     batch_size: 1
     backend: LMDB
   }
   annotated_data_param {
-    label_map_file: "./python/lmdb_utils/labelmap_wider.prototxt"
+    label_map_file: "/opt/caffe/python/lmdb_utils/labelmap_wider.prototxt"
   }
 }
 
@@ -1783,6 +1783,6 @@ layer {
    background_label_id: 0
    overlap_threshold: 0.5
    evaluate_difficult_gt: false
-   name_size_file: "path_to_widerface/list_wider_val_size.txt"
+   name_size_file: "<path_to_widerface>/list_wider_val_size.txt"
  }
 }

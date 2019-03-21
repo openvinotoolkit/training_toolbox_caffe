@@ -1,5 +1,5 @@
-train_net: "./models/face_detection/train.prototxt"
-test_net: "./models/face_detection/test.prototxt"
+train_net: "train.prototxt"
+test_net: "test.prototxt"
 
 test_iter: 3226
 test_interval: 1000
