@@ -6,7 +6,7 @@ The training procedure can be done using data in LMDB format. To launch training
 
 ### Create LMDB files
 
-To create LMDB files got to the '$CAFFE_ROOT/python/lmdb_utils/' directory and run the following scripts:
+To create LMDB files go to the '$CAFFE_ROOT/python/lmdb_utils/' directory and run the following scripts:
 
 1. Run docker in interactive sesion with mounted directory with WIDER dataset
 ```
@@ -19,26 +19,26 @@ python3 $CAFFE_ROOT/python/lmdb_utils/wider_to_xml.py <path_to_widerface_root_fo
 python3 $CAFFE_ROOT/python/lmdb_utils/wider_to_xml.py <path_to_widerface_root_folder> <path_to_widerface_root_folder>/WIDER_train/images/ <path_to_widerface_root_folder>/wider_face_split/wider_face_val_bbx_gt.txt val
 ```
 
-2. Convert xml annotations to set of xml files per image:
+3. Convert xml annotations to set of xml files per image:
 ```
 python3 $CAFFE_ROOT/python/lmdb_utils/xml_to_ssd.py --ssd_path <path_to_widerface_root_folder> --xml_path_train <path_to_widerface_root_folder>/wider_train.xml --xml_path_val <path_to_widerface_root_folder>/wider_val.xml
  ```
 
-3. Set data_root_dir to <path_to_widerface_root_folder> in $CAFFE_ROOT/python/lmdb_utils/create_data.sh script and run bash script to create LMDB:
+4. Set data_root_dir to <path_to_widerface_root_folder> in $CAFFE_ROOT/python/lmdb_utils/create_wider_lmdb.sh script and run bash script to create LMDB:
 ```
-nano ./$CAFFE_ROOT/python/lmdb_utils/create_data.sh
-./$CAFFE_ROOT/python/lmdb_utils/create_data.sh
+nano ./$CAFFE_ROOT/python/lmdb_utils/create_wider_lmdb.sh
+./$CAFFE_ROOT/python/lmdb_utils/create_wider_lmdb.sh
  ```
 
-4. Close docker session by 'alt+D' and check that you have lmdb files in <path_to_widerface_root_folder>.
+5. Close docker session by 'alt+D' and check that you have lmdb files in <path_to_widerface_root_folder>.
 
-5. Go to `models/face_detection` and replace in `test.prototxt` and `train.protoxt` files `<path_to_widerface>` to your path.
+6. Go to `models/face_detection` and replace in `test.prototxt` and `train.protoxt` files `<path_to_widerface>` to your path.
 
 
 ###
 
-### Action Recognition training
-On next stage we should train the Action Recognition (AR) model which reuses detections from Person Detector (PD) model part and assigns action label for each of them. To do this follow next steps:
+### Face detection training
+On next stage we should train the Face Detection model. To do this follow next steps:
 
 ```Shell
 cd ./models

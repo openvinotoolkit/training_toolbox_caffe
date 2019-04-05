@@ -84,7 +84,6 @@ def preprocess_image(img, resize_to, means, scale):
     return im_transposed
 
 
-# pylint: disable=deprecated-lambda
 def main():
     """
     Get found detections and store them in output xml file

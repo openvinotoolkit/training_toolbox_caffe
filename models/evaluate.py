@@ -51,6 +51,19 @@ def eval_ad_event(test_file, proto, model, compute_mode):
     return cmd
 
 
+def eval_cr(test_file, proto, model, compute_mode):
+    base = osp.basename(model).replace('.caffemodel', '')
+    detections_file = 'metrics/detections_iter_%s.json' % base
+    log_file = 'metrics/metrics_iter_%s.txt' % base
+    labelmap_file = '$CAFFE_ROOT/python/lmdb_utils/labelmap_cr.prototxt'
+    cmd = """
+          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
+          python3 $CAFFE_ROOT/python/get_crossroad_detections.py {proto} {model} {labelmap} --compute_mode {cm} annotation {test} --annotation_out {det}
+          python3 $CAFFE_ROOT/python/eval_crossroad_detections.py {test} {det} 2>&1 | tee {log}
+          """.format(test=test_file, proto=proto, model=model, det=detections_file, log=log_file, cm=compute_mode, labelmap=labelmap_file)
+    return cmd
+
+
 def find_files(path, iter):
     proto = 'deploy.prototxt'
     snapshots = glob.glob(osp.join(path, 'snapshots', '*_%s.caffemodel' % iter))
@@ -63,7 +76,7 @@ def find_files(path, iter):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('--type', choices=['fd', 'pd', 'ad', 'ad_event'], help='Type of metric')
+    parser.add_argument('--type', choices=['fd', 'pd', 'ad', 'ad_event', 'cr'], help='Type of metric')
     parser.add_argument('--dir', required=True, help='Experiment directory')
     parser.add_argument('--iter', required=True, help='Iteration of snapshots')
     parser.add_argument('--data_dir', required=True, help='Directory with dataset')
@@ -93,6 +106,7 @@ def main():
         'pd': eval_pd(args.annotation, proto, model, compute_mode),
         'ad': eval_ad(args.annotation, proto, model, compute_mode),
         'ad_event': eval_ad_event(args.annotation, proto, model, compute_mode),
+        'cr': eval_cr(args.annotation, proto, model, compute_mode),
     }[args.type]
 
     try:

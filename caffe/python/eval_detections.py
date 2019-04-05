@@ -28,7 +28,7 @@ from utils.detection import evaluate_detections, voc_ap, miss_rate
 from utils.dataset_xml_reader import read_annotation, convert_object_info, is_empty_bbox
 
 
-# pylint: disable=deprecated-lambda,unnecessary-lambda,invalid-name
+# pylint: disable=unnecessary-lambda,invalid-name
 def plot_curves(curves):
     """
     Plot curves

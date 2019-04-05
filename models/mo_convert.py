@@ -25,6 +25,11 @@ def shell_command(proto, model, data_type, output_dir, model_name):
     return cmd
 
 
+def shell_command_cr(proto, model, data_type, output_dir, model_name):
+    cmd = shell_command(proto_stage2, model_stage1, data_type, output_dir, model_name) + " --mean_values [104,117,123]"
+    return cmd
+
+
 def shell_command_ad(model, data_type, output_dir, model_name):
     iter_path = osp.dirname(output_dir)
     intermediate_path = osp.join(iter_path, 'intermediate_models')
@@ -72,6 +77,7 @@ def main():
 
     command = {
         'simple': shell_command(proto, model, args.data_type, output_dir, model_name),
+        'crossroad': shell_command_cr(proto, model, args.data_type, output_dir, model_name),
         'ad': shell_command_ad(model, args.data_type, output_dir, model_name)
     }[args.type]
 
