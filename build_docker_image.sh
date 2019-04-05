@@ -11,8 +11,7 @@ TARGET="${1:-gpu}"
 IMAGE_NAME="ttcf"
 IMAGE_FULL_NAME="${IMAGE_NAME}:${TARGET}"
 
-OPENVINO_VERSION=$(ls -t l_openvino_toolkit_p_* | head -n 1 | grep -oP '(?<=l_openvino_toolkit_p_)\d+\.\d+\.\d+')
-
+OPENVINO_VERSION=$(ls -tF l_openvino_toolkit_p_*.tgz | head -n 1 | grep -oP '(?<=l_openvino_toolkit_p_)\d+\.\d+\.\d+')
 
 case "$TARGET" in
     gpu)
