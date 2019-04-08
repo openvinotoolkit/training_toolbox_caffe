@@ -1,0 +1,22 @@
+{
+  "batch": 4,
+  "tasks": "<path_to_datasets>/train_tasks.txt",
+  "height": 400,
+  "width": 680,
+  "ignore_occluded": false,
+  "num_data_fillers": 2,
+  "data_queue_size": 20,
+  "gamma": true,
+  "delta": 0.1,
+  "mirror": true,
+  "down_up_scale": true,
+  "noise": false,
+  "salt_pepper": false,
+  "free_weight": 0.1,
+  "expand_weight": 1.0,
+  "crop_weight": 1.0,
+  "class_names_map": {"person": 1},
+  "use_attribute": "",
+  "valid_class_ids": [0, 1],
+  "ignore_class_id": 0
+}

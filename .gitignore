@@ -61,8 +61,8 @@ Makefile.config
 # Data and models are either
 # 1. reference, and not casually committed
 # 2. custom, and live on their own unless they're deliberated contributed
-data/*
-models/*
+caffe/data/*
+caffe/models/*
 *.caffemodel
 *.caffemodel.h5
 *.solverstate
@@ -72,23 +72,23 @@ models/*
 *lmdb
 
 # build, distribute, and bins (+ python proto bindings)
-build
-.build_debug/*
-.build_release/*
-distribute/*
+caffe/build
+caffe/.build_debug/*
+caffe/.build_release/*
+caffe/distribute/*
 *.testbin
 *.bin
-python/caffe/proto/
-cmake_build
-.cmake_build
+caffe/python/caffe/proto/
+caffe/cmake_build
+caffe/.cmake_build
 
 # Generated documentation
-docs/_site
-docs/_includes
-docs/gathered
-_site
-doxygen
-docs/dev
+caffe/docs/_site
+caffe/docs/_includes
+caffe/docs/gathered
+caffe/_site
+caffe/doxygen
+caffe/docs/dev
 
 # LevelDB files
 *.sst
@@ -102,3 +102,6 @@ MANIFEST-*
 jobs
 temp
 examples/*/*lmdb
+
+l_openvino*tgz
+get-docker.sh
