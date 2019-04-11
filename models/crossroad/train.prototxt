@@ -46,7 +46,7 @@ layer {
     }
   }
   data_param {
-    source: "./data_crossroad"
+    source: "/data/lmdb/crossroad_100_train_lmdb"
     batch_size: 4
     backend: LMDB
   }

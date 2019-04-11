@@ -26,7 +26,7 @@ def shell_command(proto, model, data_type, output_dir, model_name):
 
 
 def shell_command_cr(proto, model, data_type, output_dir, model_name):
-    cmd = shell_command(proto_stage2, model_stage1, data_type, output_dir, model_name) + " --mean_values [104,117,123]"
+    cmd = shell_command(proto, model, data_type, output_dir, model_name) + " --mean_values [104,117,123]"
     return cmd
 
 
@@ -51,7 +51,7 @@ def shell_command_ad(model, data_type, output_dir, model_name):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('--type', default='simple', choices=['simple', 'ad'], help='Model type')
+    parser.add_argument('--type', default='simple', choices=['simple', 'ad', 'cr'], help='Model type')
     parser.add_argument('--dir', required=True, help='Experiment directory')
     parser.add_argument('--iter', required=True, help='Iteration of snapshots')
     parser.add_argument('--name', required=True, help='Model name')
@@ -77,8 +77,8 @@ def main():
 
     command = {
         'simple': shell_command(proto, model, args.data_type, output_dir, model_name),
-        'crossroad': shell_command_cr(proto, model, args.data_type, output_dir, model_name),
-        'ad': shell_command_ad(model, args.data_type, output_dir, model_name)
+        'ad': shell_command_ad(model, args.data_type, output_dir, model_name),
+        'cr': shell_command_cr(proto, model, args.data_type, output_dir, model_name),
     }[args.type]
 
     subprocess.call(docker_command + ['bash', '-c', command], env={'NV_GPU': args.gpu})

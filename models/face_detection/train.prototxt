@@ -42,7 +42,7 @@ layer {
     }
   }
   data_param {
-    source: "<path_to_widerface>/lmdb/wider_wider_train_lmdb"
+    source: "/data/lmdb/wider_wider_train_lmdb"
     batch_size: 8
     backend: LMDB
   }

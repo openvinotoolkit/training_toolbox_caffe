@@ -4,7 +4,7 @@ root_dir=$cur_dir/../..
 cd $root_dir
 
 redo=1
-data_root_dir="/workspace"
+data_root_dir="/data"
 dataset_name="crossroad_100"
 mapfile="$root_dir/python/lmdb_utils/labelmap_cr.prototxt"
 anno_type="detection"
@@ -21,7 +21,7 @@ then
   extra_cmd="$extra_cmd --redo"
 fi
 
-subset="crossroad_100_train"
+subset="train"
 
 PYTHONPATH=$PYTHONPATH:$root_dir/python python3 $root_dir/scripts/create_annoset.py --anno-type=$anno_type --label-type=$label_type --label-map-file=$mapfile --min-dim=$min_dim --max-dim=$max_dim --resize-width=$width --resize-height=$height  --check-label $extra_cmd --shuffle --backend=$db $data_root_dir $data_root_dir/$subset.txt $data_root_dir/$db/$dataset_name"_"$subset"_"$db /tmp/tmp 1>&1 | tee $root_dir/python/lmdb_utils/$subset.log
 

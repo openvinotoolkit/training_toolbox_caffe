@@ -12,9 +12,9 @@ def eval_fd(test_file, proto, model, compute_mode):
     detections_file = 'metrics/detections_iter_%s.xml' % base
     log_file = 'metrics/metrics_iter_%s.txt' % base
     cmd = """
-          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
           mkdir metrics
-          python3 $CAFFE_ROOT/python/get_detections.py  --compute_mode {cm} --gt {test} --def {proto} --net {model} --labels "['background','face']" --resize_to 300x300 --delay 1 --det {det}
+          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
+          python3 $CAFFE_ROOT/python/get_detections.py  --compute_mode {cm} --gt {test} --def {proto} --net {model} --labels "['background','face']" --resize_to 300x300 --delay -1 --det {det}
           python3 $CAFFE_ROOT/python/eval_detections.py --gt {test} --det {det} --objsize 16 1024 --imsize 1024 1024 --reasonable --mm --class_lbl face 2>&1 | tee {log}
           """.format(test=test_file, proto=proto, model=model, det=detections_file, log=log_file, cm=compute_mode)
     return cmd
@@ -25,7 +25,7 @@ def eval_pd(test_file, proto, model, compute_mode):
     detections_file = 'metrics/detections_iter_%s.xml' % base
     log_file = 'metrics/metrics_iter_%s.txt' % base
     cmd = """
-            python3 $CAFFE_ROOT/python/get_detections.py --compute_mode {cm} --gt {test} --def {proto} --net {model} --labels "['background', 'person']" --resize_to 680x400 --delay 1  --det {det}
+            python3 $CAFFE_ROOT/python/get_detections.py --compute_mode {cm} --gt {test} --def {proto} --net {model} --labels "['background', 'person']" --resize_to 680x400 --delay -1  --det {det}
             python3 $CAFFE_ROOT/python/eval_detections.py --gt {test} --det {det} --objsize 100 10000 --imsize 1920 1080 --reasonable --mm --class_lbl person 2>&1 | tee {log}
           """.format(test=test_file, proto=proto, model=model, det=detections_file, log=log_file, cm=compute_mode)
     return cmd
@@ -57,6 +57,7 @@ def eval_cr(test_file, proto, model, compute_mode):
     log_file = 'metrics/metrics_iter_%s.txt' % base
     labelmap_file = '$CAFFE_ROOT/python/lmdb_utils/labelmap_cr.prototxt'
     cmd = """
+          mkdir metrics
           . /opt/intel/computer_vision_sdk/bin/setupvars.sh
           python3 $CAFFE_ROOT/python/get_crossroad_detections.py {proto} {model} {labelmap} --compute_mode {cm} annotation {test} --annotation_out {det}
           python3 $CAFFE_ROOT/python/eval_crossroad_detections.py {test} {det} 2>&1 | tee {log}
@@ -80,7 +81,7 @@ def main():
     parser.add_argument('--dir', required=True, help='Experiment directory')
     parser.add_argument('--iter', required=True, help='Iteration of snapshots')
     parser.add_argument('--data_dir', required=True, help='Directory with dataset')
-    parser.add_argument('--annotation', required=True, help='Annotation file')
+    parser.add_argument('--annotation', required=True, help='Name of annotation file')
     parser.add_argument('--gpu', default='0', help='GPU ids')
     parser.add_argument('--image', default="ttcf:latest", help='Docker image')
     args = parser.parse_args()
@@ -96,17 +97,17 @@ def main():
         '--name', container_name,
         '--user=%s:%s' % (os.getuid(), os.getgid()),
         '-v', '%s:/workspace' % args.dir,
-        '-v', '%s:%s:ro' % (args.data_dir, args.data_dir),  # Mount directory with dataset with the some absolute path
+        '-v', '%s:/data:ro' % args.data_dir,  # Mount directory with dataset
         args.image
     ]
 
     proto, model = find_files(args.dir, args.iter)
     command = {
-        'fd': eval_fd(args.annotation, proto, model, compute_mode),
-        'pd': eval_pd(args.annotation, proto, model, compute_mode),
-        'ad': eval_ad(args.annotation, proto, model, compute_mode),
-        'ad_event': eval_ad_event(args.annotation, proto, model, compute_mode),
-        'cr': eval_cr(args.annotation, proto, model, compute_mode),
+        'fd': eval_fd("/data/" + args.annotation, proto, model, compute_mode),
+        'pd': eval_pd("/data/" + args.annotation, proto, model, compute_mode),
+        'ad': eval_ad("/data/" + args.annotation, proto, model, compute_mode),
+        'ad_event': eval_ad_event("/data/" + args.annotation, proto, model, compute_mode),
+        'cr': eval_cr("/data/" + args.annotation, proto, model, compute_mode),
     }[args.type]
 
     try:

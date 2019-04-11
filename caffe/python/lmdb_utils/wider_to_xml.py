@@ -99,11 +99,11 @@ def main():
     show = args.show
 
     if mode == "train":
-        path_out = path_root + "processed_train/"
-        result_file_name = path_root + "wider_train.xml"
+        path_out = path_root + "/processed_train/"
+        result_file_name = path_root + "/wider_train.xml"
     else:
-        path_out = path_root + "processed_val/"
-        result_file_name = path_root + "wider_val.xml"
+        path_out = path_root + "/processed_val/"
+        result_file_name = path_root + "/wider_val.xml"
     #os.system("rm -rf " + path_out)
     make_dir(path_out)
 
@@ -124,12 +124,7 @@ def main():
         image_name_out = image_name.split('/')[-1]
         image_name_out = image_name_out[:-4] + ".png"
 
-        image_path = images_path + image_name
         print((image_path, image_name, image_name_out))
-
-        if show:
-            image = cv2.imread(image_path)
-        print(image.shape)
 
         bboxes = []
         for obj_idx in range(bbox_num):

@@ -4,7 +4,7 @@ root_dir=$cur_dir/../..
 cd $root_dir
 
 redo=1
-data_root_dir="path_to_WIDERFace_dataset"
+data_root_dir="/data"
 dataset_name="wider"
 mapfile="$root_dir/python/lmdb_utils/labelmap_wider.prototxt"
 anno_type="detection"

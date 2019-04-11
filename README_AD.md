@@ -25,9 +25,8 @@ cd ./models/templates/person_detection_action_recognition_N_classes
 ./generate.py -t <PATH_TO_TASKS_FILE> -n <NUMBER_OF_ACTION> --fine_tune
 ```
 
-2. Change fields `tasks`, `class_names_map` and `valid_class_names` in `data_config.json`
+2. Change fields `class_names_map` and `valid_class_names` in `data_config.json`
 ```json
-"tasks": "<set_path>/train_tasks.txt"
 "class_names_map": {
   "class_label_0": 0,
   "class_label_1": 1,
@@ -40,7 +39,7 @@ cd ./models/templates/person_detection_action_recognition_N_classes
 ### (optional) Prepare init weights from PD model
 1. Run docker in interactive sesion with mounted directory with WIDER dataset
 ```
-nvidia-docker --rm -it -v <path_to_folder_with_weiths>:/workspace tccf bash
+nvidia-docker --rm -it -v <path_to_folder_with_weights>:/workspace tccf bash
 ```
 
 2. To initialize AR model part copy weights from twin PD branch:

@@ -21,7 +21,7 @@ import json
 MODES = ['L', 'RGB']
 
 #pylint: disable=unused-variable, invalid-name
-def save_image_annotation(ann, image_id, file_path, labels_of_interest=None):
+def save_image_annotation(data_dir, ann, image_id, file_path, labels_of_interest=None):
     """ Save image annotation
     """
     import xml.etree.cElementTree as ET
@@ -30,7 +30,7 @@ def save_image_annotation(ann, image_id, file_path, labels_of_interest=None):
 
     ET.SubElement(root, 'filename').text = image_id
     try:
-        img = pil_image.open(ann['image'])
+        img = pil_image.open(path.join(data_dir, ann['image']))
         width, height = img.size
         mode = img.mode
         assert mode in MODES
@@ -41,7 +41,7 @@ def save_image_annotation(ann, image_id, file_path, labels_of_interest=None):
         ET.SubElement(size, 'height').text = str(height)
         ET.SubElement(size, 'depth').text = str(depth)
     except Exception as ex:
-        tqdm.write('invalid image {}'.format(ann['image']))
+        tqdm.write('invalid image {}'.format(path.join(data_dir, ann['image'])))
         return 0, 0
     ET.SubElement(root, 'segmented').text = '0'
     for obj in ann['objects']:
@@ -71,7 +71,6 @@ def main():
     """
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('annotation_file_path')
-    parser.add_argument('out_dir_path')
     parser.add_argument('out_list_file_path')
     parser.add_argument('--name_size_file_path', default='')
     parser.add_argument('--labels', default=None, nargs='+')
@@ -79,12 +78,11 @@ def main():
 
     ann_list = []
 
-    if path.exists(args.out_dir_path) and not path.isdir(args.out_dir_path):
-        log.info('{} is not a directory'.format(args.out_dir_path))
-        exit()
+    data_dir = path.dirname(args.annotation_file_path)
+    out_dir_path = path.join(data_dir, 'annotation_train_voc/voc_annotation')
 
-    if not path.exists(path.join(args.out_dir_path, 'voc_annotation')):
-        makedirs(path.join(args.out_dir_path, 'voc_annotation'))
+    if not path.exists(out_dir_path):
+        makedirs(out_dir_path)
 
     log.info('loading annotation...')
     annotation = json.load(open(args.annotation_file_path, 'r'))
@@ -93,9 +91,9 @@ def main():
     log.info('processing each image...')
     for image_idx, image_annotation in tqdm(enumerate(annotation), total=len(annotation)):
         image_id = '{:07}'.format(image_idx)
-        ann_file_path = path.join(args.out_dir_path, 'voc_annotation', image_id + '.xml')
-        ann_list.append((image_annotation['image'], ann_file_path))
-        width, height = save_image_annotation(image_annotation, image_id, ann_file_path,
+        ann_file = path.join('annotation_train_voc/voc_annotation', image_id + '.xml')
+        ann_list.append((image_annotation['image'], ann_file))
+        width, height = save_image_annotation(data_dir, image_annotation, image_id, path.join(data_dir, ann_file),
                                               labels_of_interest=args.labels)
         image_sizes.append((width, height))
     log.info('processing each image...[done]')

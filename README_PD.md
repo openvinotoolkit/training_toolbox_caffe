@@ -10,7 +10,6 @@ Prepare dataset follow [instruction](./README_DATA.md)
 ### Person Detection training
 On first stage you should train the SSD-based person (two class) detector. To do this you should run single-GPU (python layers does not allow to run on multiple GPUs) training procedure (specify `GPU_ID`):
 
-1. Set path to tasks in `data_config.json`
 
 ```Shell
 cd ./models
