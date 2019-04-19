@@ -22,7 +22,7 @@ The train procedure for action detection&recognition model consists of two consi
 1. Use template `person_detection_action_recognition_N_classes` to generate file to train model for N action
 ```Shell
 cd ./models/templates/person_detection_action_recognition_N_classes
-./generate.py -t <PATH_TO_TASKS_FILE> -n <NUMBER_OF_ACTION> --fine_tune
+./generate.py -n <NUMBER_OF_ACTION> --model_name person_detection_action_recognition_2_classes
 ```
 
 2. Change fields `class_names_map` and `valid_class_names` in `data_config.json`
@@ -59,10 +59,10 @@ On next stage we should train the Action Recognition (AR) model which reuses det
 
 ```Shell
 cd ./models
-python  train.py --model person_detection_action_recognition \ # name of model
-                --weights action_detection_0005.caffemodel \   # initialize weights from 'init_weights' directory
-                --data_dir <PATH_TO_DATA> \                    # path to directory with dataset
-                --work_dir <WORK_DIR> \                        # directory to collect file from training process
+python train.py --model person_detection_action_recognition \ # name of model
+                --weights action_detection_0005.caffemodel \  # initialize weights from 'init_weights' directory
+                --data_dir <PATH_TO_DATA> \                   # path to directory with dataset
+                --work_dir <WORK_DIR> \                       # directory to collect file from training process
                 --gpu <GPU_ID>
 ```
 
@@ -75,7 +75,7 @@ To evaluate the quality of trained Action Recognition model on your test data yo
 python evaluate.py --type ad \
     --dir <EXPERIMENT_DIR> \
     --data_dir <DATA_DIR> \
-    --annotaion <TEST_TASK_FILE> \
+    --annotaion test_tasks.txt \
     --iter <ITERATION_NUM>
 ```
 
@@ -84,7 +84,7 @@ python evaluate.py --type ad \
 python evaluate.py --type ad_event \
     --dir <EXPERIMENT_DIR> \
     --data_dir <DATA_DIR> \
-    --annotaion <TEST_TASK_FILE> \
+    --annotaion test_tasks.txt \
     --iter <ITERATION_NUM>
 ```
 

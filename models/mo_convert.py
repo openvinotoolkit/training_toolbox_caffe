@@ -20,8 +20,9 @@ def find_files(path, iter):
 def shell_command(proto, model, data_type, output_dir, model_name):
     mo_bin = '/opt/intel/computer_vision_sdk/deployment_tools/model_optimizer/mo_caffe.py'
     cmd = """
-          {bin} --input_proto {proto} --input_model {model} --data_type {type} --output_dir {dir} --model_name {name}
-          """.format(bin=mo_bin, proto=proto, model=model, type=data_type, dir=output_dir, name=model_name)
+          {bin} --input_proto {proto} --input_model {model} --data_type {type} \
+          --output_dir {dir} --model_name {name}""".format(
+              bin=mo_bin, proto=proto, model=model, type=data_type, dir=output_dir, name=model_name)
     return cmd
 
 

@@ -40,7 +40,6 @@ Range = namedtuple('Range', 'start, end, label')
 IDS_SHIFT_SCALE = 1000000
 
 
-
 def parse_tasks(file_path):
     """Process input file to extract list of tasks. Each tasks is
            represented by line: "path_to_annotation path_to_video_file"
@@ -52,6 +51,7 @@ def parse_tasks(file_path):
     print('Found tasks:')
 
     tasks = []
+    data_dir = os.path.dirname(file_path)
     with open(file_path, 'r') as input_stream:
         for line in input_stream:
             if line.endswith('\n'):
@@ -61,6 +61,8 @@ def parse_tasks(file_path):
                 continue
 
             annotation_path, video_path = line.split(' ')
+            annotation_path = os.path.join(data_dir, annotation_path)
+            video_path = os.path.join(data_dir, video_path)
 
             if not exists(annotation_path) or not exists(video_path):
                 continue

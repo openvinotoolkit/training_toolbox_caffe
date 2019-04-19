@@ -19,6 +19,10 @@ def prepare_directory(path, model_name, is_gpu):
         print('Directory does not exist: %s' % path)
         exit(1)
 
+    if not osp.exists(model_name):
+        print('Directory does not exist: %s' % model_name)
+        exit(1)
+
     model_dir = osp.join(path, model_name)
     if not osp.exists(model_dir):
         os.makedirs(model_dir)
@@ -96,7 +100,8 @@ def main():
         print('Command: ' + caffe_command)
         print('='*64)
         print('\nStopping container...')
-        subprocess.call(['docker', 'stop', '-t', '0', container_name])
+        subprocess.call(['docker', 'stop', '-t', '0', container_name],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':

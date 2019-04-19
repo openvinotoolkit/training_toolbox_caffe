@@ -115,7 +115,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        subprocess.call(['docker', 'stop', '-t', '0', container_name])
+        subprocess.call(['docker', 'stop', '-t', '0', container_name],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print('\n'*5)
         print('='*64)
         print('Docker: %s' % ' '.join(docker_command))

@@ -8,11 +8,14 @@ from argparse import ArgumentParser
 from collections import OrderedDict
 
 
-def generate_variables(tasks, num_actions, fine_tune):
+DEFAULT_NAME = "person_detection_action_recognition_{}_classes"
+
+
+def generate_variables(model_name, num_actions, fine_tune):
     num_classes = num_actions + 1  # + background
 
     variables = dict()
-    variables['tasks'] = tasks
+    variables['model_name'] = model_name
     variables['num_actions'] = num_actions
     variables['num_classes'] = num_classes
     variables['fine_tune'] = fine_tune
@@ -45,19 +48,19 @@ def render(template_file, vars, ouput_file):
 
 def main():
     parser = ArgumentParser(description='Generator of person_detection_action_recognition model for N classes')
-    parser.add_argument('--tasks', '-t', type=str, required=True, help='File with list of annotation files')
     parser.add_argument('--num_actions', '-n', type=int, required=True, help='Number of actions')
+    parser.add_argument('--model_name', '-m', type=str, default="", help='Name of model ')
     parser.add_argument('--output_dir', '-o', type=str, default='../..', help='Directory with models')
     parser.add_argument('--fine_tune', action='store_true', help='Use solver for fine-tune with Pretrained Models')
     args = parser.parse_args()
 
-    model_name = 'person_detection_action_recognition_%s_classes' % args.num_actions
+    model_name = args.model_name if args.model_name else DEFAULT_NAME.format(args.num_actions)
+
     output_dir = os.path.abspath(os.path.join(args.output_dir, model_name))
 
-    assert os.path.isfile(args.tasks), "File does not exist"
     assert not os.path.exists(output_dir), "Directory already exists"
 
-    variables = generate_variables(args.tasks, args.num_actions, args.fine_tune)
+    variables = generate_variables(model_name, args.num_actions, args.fine_tune)
     file_list = glob.glob(r'templates/**/*j2', recursive=True)
 
     for file_name in file_list:
@@ -72,7 +75,7 @@ def main():
     print(' 1. Set correct "class_names_map" and "valid_class_names" in %s/data_config.json' % output_dir)
     print(' 2. Train model: ')
     print('    $ cd <repo>/models')
-    print('    $ python train.py -m %s -w action_detection_0005.caffemodel -wd <WORK_DIR> -d <PATH_TO_DATA> --gpu 0' % model_name)
+    print('    $ python train.py --model %s --weights action_detection_0005.caffemodel --work_dir <WORK_DIR> --data_dir <PATH_TO_DATA> --gpu 0' % model_name)
 
 
 if __name__ == '__main__':
