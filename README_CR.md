@@ -2,7 +2,7 @@
 
 ## Data preparation
 
-The training procedure can be done using data in LMDB format. Just as an example of usage there is a small dataset provided. At first, you need to create LMDB files from it. The original annotations are stored in <DATA_DIR>/annotation_train_cvt.json and <DATA_DIR>/annotation_val_cvt.json files.
+As an example of usage please download a small dataset from [here](https://download.01.org/opencv/openvino_training_extensions/datasets/crossroad/crossroad_85.tar.gz). To run training, you firstly need to create LMDB files. The annotations should be stored in <DATA_DIR>/annotation_train_cvt.json and <DATA_DIR>/annotation_val_cvt.json files.
 
 
 ### Create LMDB files
