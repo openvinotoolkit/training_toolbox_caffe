@@ -9,25 +9,25 @@ The training procedure can be done using data in LMDB format. To launch training
 To create LMDB files go to the '$CAFFE_ROOT/python/lmdb_utils/' directory and run the following scripts:
 
 1. Run docker in interactive sesion with mounted directory with WIDER dataset
-```
+```Shell
 nvidia-docker run --rm -it --user=$(id -u) -v <DATA_DIR>:/data ttcf bash
 ```
 
 2.  Convert original annotation to xml format for both train and val subsets:
-```
+```Shell
 python3 $CAFFE_ROOT/python/lmdb_utils/wider_to_xml.py /data /data/WIDER_train/images/ /data/wider_face_split/wider_face_train_bbx_gt.txt train
 python3 $CAFFE_ROOT/python/lmdb_utils/wider_to_xml.py /data /data/WIDER_val/images/ /data/wider_face_split/wider_face_val_bbx_gt.txt val
 ```
 
 3. Convert xml annotations to set of xml files per image:
-```
+```Shell
 python3 $CAFFE_ROOT/python/lmdb_utils/xml_to_ssd.py --ssd_path /data --xml_path_train /data/wider_train.xml --xml_path_val /data/wider_val.xml
- ```
+```
 
 4. Run bash script to create LMDB:
-```
+```Shell
 bash $CAFFE_ROOT/python/lmdb_utils/create_wider_lmdb.sh
- ```
+```
 
 5. Close docker session by 'alt+D' and check that you have lmdb files in <DATA_DIR>.
 

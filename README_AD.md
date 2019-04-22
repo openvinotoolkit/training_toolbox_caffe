@@ -38,12 +38,12 @@ cd ./models/templates/person_detection_action_recognition_N_classes
 
 ### (optional) Prepare init weights from PD model
 1. Run docker in interactive sesion with mounted directory with WIDER dataset
-```
+```Shell
 nvidia-docker --rm -it -v <path_to_folder_with_weights>:/workspace tccf bash
 ```
 
 2. To initialize AR model part copy weights from twin PD branch:
-```
+```Shell
 python2 $CAFFE_ROOT/python/rename_layers.py -i pd_weights_path.cafemodel -o ar_init_weights_path.cafemodel -p "cl/"
 ```
 where `pd_weights_path.cafemodel` - weights of trained PD model (see [previous](#person-detection-training) section) and `ar_init_weights_path.cafemodel` - output path to init weights for AR model.

@@ -10,18 +10,18 @@ As an example of usage please download a small dataset from [here](https://downl
 To create LMDB files go to the '$CAFFE_ROOT/python/lmdb_utils/' directory and run the following scripts:
 
 1. Run docker in interactive sesion with mounted directory with WIDER dataset
-```
+```Shell
 nvidia-docker run --rm -it --user=$(id -u) -v <DATA_DIR>:/data ttcf bash
 ```
 
 2. Convert original annotation to Pascal VOC format for training subset. This way the annotation makes compatible with Caffe SSD tools, required for data LMDB generation.
-```
+```Shell
 python3 $CAFFE_ROOT/python/lmdb_utils/convert_to_voc_format.py /data/annotation_train_cvt.json /data/train.txt
- ```
-3. Run bash script to create LMDB:
 ```
+3. Run bash script to create LMDB:
+```Shell
 bash $CAFFE_ROOT/python/lmdb_utils/create_cr_lmdb.sh
- ```
+```
 4. Close docker session by 'alt+D' and check that you have lmdb files in <DATA_DIR>/lmdb.
 
 

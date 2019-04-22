@@ -1,5 +1,8 @@
 # Data preparation
-Assume next  structure of data:
+
+**NOTE** Only for models that used `custom_layer/data_layer.py`
+
+Assume next structure of data:
 <pre>
     |-- data_dir
          |-- videos
@@ -11,7 +14,7 @@ Assume next  structure of data:
                 frame_000000.png
                 frame_000001.png
             |-- video_2
-                frame_000000png
+                frame_000000.png
                 frame_000001.png
          |-- annotation
             annotation_file_1.xml
