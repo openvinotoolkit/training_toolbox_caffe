@@ -1,7 +1,10 @@
 # Data preparation
-Assume next  structure of data:
+
+**NOTE** Only for models that used `custom_layer/data_layer.py`
+
+Assume next structure of data:
 <pre>
-    |-- data_root
+    |-- data_dir
          |-- videos
             video1.mp4
             video2.mp4
@@ -11,7 +14,7 @@ Assume next  structure of data:
                 frame_000000.png
                 frame_000001.png
             |-- video_2
-                frame_000000png
+                frame_000000.png
                 frame_000001.png
          |-- annotation
             annotation_file_1.xml
@@ -64,12 +67,12 @@ For more robust control of image sources we have created separate file where eac
 
 Example of `train_tasks.txt` file:
 ```
-/data_root/annotations/annotation_file_1.xml 1920,1080 /data_root/images/video1
-/data_root/annotations/annotation_file_2.xml 1920,1080 /data_root/images/video2
+annotations/annotation_file_1.xml 1920,1080 images/video1
+annotations/annotation_file_2.xml 1920,1080 images/video2
 ```
 
 Example of `test_tasks.txt` file:
 ```
-/data_root/annotations/annotation_file_3.xml /data_root/videos/video3.mp4
+annotations/annotation_file_3.xml videos/video3.mp4
 ```
 train_tasks.txt

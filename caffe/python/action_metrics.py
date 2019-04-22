@@ -38,6 +38,7 @@ import caffe
 
 BBoxDesc = namedtuple('BBoxDesc', 'label, det_conf, action_conf, xmin, ymin, xmax, ymax')
 
+
 def extract_video_properties(vidcap):
     """Extracts video height, width, fps and number of frames.
 
@@ -63,6 +64,7 @@ def parse_tasks(file_path):
     print('Found tasks:')
 
     tasks = []
+    data_dir = os.path.dirname(file_path)
     with open(file_path, 'r') as input_stream:
         for line in input_stream:
             if line.endswith('\n'):
@@ -72,7 +74,8 @@ def parse_tasks(file_path):
                 continue
 
             annotation_path, video_path = line.split(' ')
-
+            annotation_path = os.path.join(data_dir, annotation_path)
+            video_path = os.path.join(data_dir, video_path)
             if not exists(annotation_path) or not exists(video_path):
                 continue
 

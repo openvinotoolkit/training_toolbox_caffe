@@ -18,7 +18,7 @@ layer {
     }
   }
   data_param {
-    source: "<path_to_widerface>/lmdb/wider_wider_val_lmdb"
+    source: "/data/lmdb/wider_wider_val_lmdb"
     batch_size: 1
     backend: LMDB
   }
@@ -1783,6 +1783,6 @@ layer {
    background_label_id: 0
    overlap_threshold: 0.5
    evaluate_difficult_gt: false
-   name_size_file: "<path_to_widerface>/list_wider_val_size.txt"
+   name_size_file: "/data/list_wider_val_size.txt"
  }
 }

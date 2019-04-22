@@ -19,6 +19,10 @@ def prepare_directory(path, model_name, is_gpu):
         print('Directory does not exist: %s' % path)
         exit(1)
 
+    if not osp.exists(model_name):
+        print('Directory does not exist: %s' % model_name)
+        exit(1)
+
     model_dir = osp.join(path, model_name)
     if not osp.exists(model_dir):
         os.makedirs(model_dir)
@@ -70,7 +74,7 @@ def main():
         '--user=%s:%s' % (os.getuid(), os.getgid()),
         '--name', container_name,  # Name of container
         '-v', '%s:/workspace' % experiment_dir,  # Mout work directory
-        '-v', '%s:%s:ro' % (args.data_dir, args.data_dir),  # Mount directory with dataset with the some absolute path
+        '-v', '%s:/data:ro' % args.data_dir,  # Mount directory with dataset
         '-v', '%s:/init_weights:ro' % os.path.abspath('../init_weights'),  # Mount directory with init weights
         args.image
     ]
@@ -96,7 +100,8 @@ def main():
         print('Command: ' + caffe_command)
         print('='*64)
         print('\nStopping container...')
-        subprocess.call(['docker', 'stop', '-t', '0', container_name])
+        subprocess.call(['docker', 'stop', '-t', '0', container_name],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':

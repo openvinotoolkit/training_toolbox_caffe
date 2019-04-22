@@ -1,0 +1,25 @@
+item {
+  name: "background"
+  label: 0
+  display_name: "background"
+}
+item {
+  name: "person"
+  label: 1
+  display_name: "person"
+}
+item {
+  name: "vehicle"
+  label: 2
+  display_name: "vehicle"
+}
+item {
+  name: "non-vehicle"
+  label: 3
+  display_name: "non-vehicle"
+}
+item {
+  name: "ignored"
+  label: -1
+  display_name: "ignored"
+}

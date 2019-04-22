@@ -7,10 +7,17 @@ This is a [BVLC Caffe](https://github.com/BVLC/caffe) fork that is intended for 
 - action detection and action recognition models for smart classroom use-case, see [README_AD.md](README_AD.md),
 - person detection for smart classroom use-case, see [README_PD.md](README_PD.md),
 - face detection model, see [README_FD.md](README_FD.md).
+- person-vehicle-bike crossroad detection model, see [README_CR.md](README_CR.md).
 
 Please find original readme file [here](README_BVLC.md).
 
-If you want to make a contribution please follow [the guideline](CONTRIBUTING.md).
+
+## Models
+* [Face detection](./README_FD.md)
+* [Person detection](./README_PD.md)
+* [Action recognition](./README_AD.md)
+* [Person-vehicle-bike crossroad detection](./README_CR.md)
+
 
 ## Install requirements
 1. [Install Docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
@@ -86,11 +93,6 @@ docker run --rm --name ttcf -it --user=$(id -u):$(id -g) -v <host_path>:<contain
 ```
 And add to all scripts `--gpu -1 --image tccf:cpu` arguments.
 
-
-## Models
-* [Face detection](./README_FD.md)
-* [Person detection](./README_PD.md)
-* [Action recognition](./README_AD.md)
 
 ## License and Citation
 

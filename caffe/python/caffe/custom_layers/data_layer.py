@@ -17,7 +17,7 @@ import signal
 import json
 from builtins import range
 from os import listdir
-from os.path import exists, basename, isfile, join
+from os.path import exists, basename, isfile, join, dirname
 from collections import namedtuple
 from multiprocessing import Process, Queue
 
@@ -157,6 +157,8 @@ class SampleDataFromDisk(object):
         """
 
         tasks = []
+        data_dir = dirname(file_path)
+
         with open(file_path, 'r') as file_stream:
             for line in file_stream:
                 if line.endswith('\n'):
@@ -166,6 +168,8 @@ class SampleDataFromDisk(object):
                     continue
 
                 annotation_path, video_resolution, images_dir = line.split(' ')
+                annotation_path = join(data_dir, annotation_path)
+                images_dir = join(data_dir, images_dir)
                 video_resolution = [int(x) for x in video_resolution.split(',')]
 
                 if not exists(annotation_path) or not exists(images_dir):
