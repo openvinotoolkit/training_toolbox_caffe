@@ -13,7 +13,6 @@ def eval_fd(test_file, proto, model, compute_mode):
     log_file = 'metrics/metrics_iter_%s.txt' % base
     cmd = """
           mkdir metrics
-          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
           python3 $CAFFE_ROOT/python/get_detections.py  --compute_mode {cm} --gt {test} --def {proto} --net {model} --labels "['background','face']" --resize_to 300x300 --delay -1 --det {det}
           python3 $CAFFE_ROOT/python/eval_detections.py --gt {test} --det {det} --objsize 16 1024 --imsize 1024 1024 --reasonable --mm --class_lbl face 2>&1 | tee {log}
           """.format(test=test_file, proto=proto, model=model, det=detections_file, log=log_file, cm=compute_mode)
@@ -34,7 +33,6 @@ def eval_pd(test_file, proto, model, compute_mode):
 def eval_ad(test_file, proto, model, compute_mode):
     log_file = 'action_metrics/iter_%s.txt' % osp.basename(model).replace('.caffemodel', '')
     cmd = """
-          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
           mkdir -p $(dirname {log})
           python3 $CAFFE_ROOT/python/action_metrics.py --compute_mode {cm} -t {test} -p {proto} -w {model} 2>&1 | tee {log}
           """.format(test=test_file, proto=proto, model=model, log=log_file, cm=compute_mode)
@@ -44,7 +42,6 @@ def eval_ad(test_file, proto, model, compute_mode):
 def eval_ad_event(test_file, proto, model, compute_mode):
     log_file = 'action_event_metrics/iter_%s.txt' % osp.basename(model).replace('.caffemodel', '')
     cmd = """
-          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
           mkdir -p $(dirname {log})
           python3 $CAFFE_ROOT/python/action_event_metrics.py --compute_mode {cm} -t {test} -p {proto} -w {model} 2>&1 | tee {log}
           """.format(test=test_file, proto=proto, model=model, log=log_file, cm=compute_mode)
@@ -58,17 +55,17 @@ def eval_cr(test_file, proto, model, compute_mode):
     labelmap_file = '$CAFFE_ROOT/python/lmdb_utils/labelmap_cr.prototxt'
     cmd = """
           mkdir metrics
-          . /opt/intel/computer_vision_sdk/bin/setupvars.sh
           python3 $CAFFE_ROOT/python/get_crossroad_detections.py {proto} {model} {labelmap} --compute_mode {cm} annotation {test} --annotation_out {det}
           python3 $CAFFE_ROOT/python/eval_crossroad_detections.py {test} {det} 2>&1 | tee {log}
-          """.format(test=test_file, proto=proto, model=model, det=detections_file, log=log_file, cm=compute_mode, labelmap=labelmap_file)
+          """.format(test=test_file, proto=proto, model=model, det=detections_file, log=log_file,
+                     cm=compute_mode, labelmap=labelmap_file)
     return cmd
 
 
 def find_files(path, iter):
     proto = 'deploy.prototxt'
     snapshots = glob.glob(osp.join(path, 'snapshots', '*_%s.caffemodel' % iter))
-    if not len(snapshots):
+    if not snapshots:
         print('Snapshots from %s iteration does not exists' % iter)
         exit(1)
     assert len(snapshots) == 1

@@ -6,11 +6,12 @@ import os.path as osp
 import subprocess
 from argparse import ArgumentParser
 
+MO_BIN = '/opt/intel/openvino/deployment_tools/model_optimizer/mo_caffe.py'
 
 def find_files(path, iter):
     proto = 'deploy.prototxt'
     snapshots = glob.glob(osp.join(path, 'snapshots', '*_%s.caffemodel' % iter))
-    if not len(snapshots):
+    if not snapshots:
         print('Snapshots from %s iteration does not exists' % iter)
         exit(1)
     assert len(snapshots) == 1
@@ -18,11 +19,10 @@ def find_files(path, iter):
 
 
 def shell_command(proto, model, data_type, output_dir, model_name):
-    mo_bin = '/opt/intel/computer_vision_sdk/deployment_tools/model_optimizer/mo_caffe.py'
     cmd = """
           {bin} --input_proto {proto} --input_model {model} --data_type {type} \
           --output_dir {dir} --model_name {name}""".format(
-              bin=mo_bin, proto=proto, model=model, type=data_type, dir=output_dir, name=model_name)
+              bin=MO_BIN, proto=proto, model=model, type=data_type, dir=output_dir, name=model_name)
     return cmd
 
 
@@ -56,7 +56,8 @@ def main():
     parser.add_argument('--dir', required=True, help='Experiment directory')
     parser.add_argument('--iter', required=True, help='Iteration of snapshots')
     parser.add_argument('--name', required=True, help='Model name')
-    parser.add_argument('--data_type', default='FP32', choices=['FP16', 'FP32'], help='Data type for all intermediate tensors and weights.')
+    parser.add_argument('--data_type', default='FP32', choices=['FP16', 'FP32'],
+                        help='Data type for all intermediate tensors and weights.')
     parser.add_argument('--gpu', default='0', help='GPU ids')
     parser.add_argument('--image', default="ttcf:latest", help='Docker image')
     args = parser.parse_args()

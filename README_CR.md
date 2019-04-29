@@ -32,10 +32,10 @@ On next stage we should train the Person-vehicle-bike crossroad (four class) det
 
 ```Shell
 cd ./models
-python train.py --model crossroad \                                        # name of model
-                --weights person-vehicle-bike-crossroad-0078.caffemodel \  # initialize weights from 'init_weights' directory
-                --data_dir <DATA_DIR> \                                    # path to directory with dataset
-                --work_dir<WORK_DIR> \                                     # directory to collect file from training process
+python train.py --model crossroad \
+                --weights person-vehicle-bike-detection-crossroad-0078.caffemodel \
+                --data_dir <DATA_DIR> \
+                --work_dir<WORK_DIR> \
                 --gpu <GPU_ID>
 ```
 
