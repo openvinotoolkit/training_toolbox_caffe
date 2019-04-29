@@ -25,4 +25,3 @@ layer_wise_reduce: true
 
 snapshot: 10000
 snapshot_prefix: "./snapshots/crossroad"
-

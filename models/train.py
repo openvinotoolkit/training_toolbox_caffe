@@ -37,11 +37,11 @@ def prepare_directory(path, model_name, is_gpu):
     # Rewrote solver.protoxt to run in CPU mode
     if not is_gpu:
         solver_path = osp.join(experiment_dir, 'solver.prototxt')
-        with open(solver_path) as f:
-            newText = f.read().replace('GPU', 'CPU')
+        with open(solver_path) as file:
+            new_text = file.read().replace('GPU', 'CPU')
 
-        with open(solver_path, "w") as f:
-            f.write(newText)
+        with open(solver_path, "w") as file:
+            file.write(new_text)
 
     os.makedirs(osp.join(experiment_dir, 'snapshots'))
     os.makedirs(osp.join(experiment_dir, 'logs'))
@@ -52,7 +52,7 @@ def prepare_directory(path, model_name, is_gpu):
 def main():
     parser = ArgumentParser()
     parser.add_argument('--model', required=True, help='Model name')
-    parser.add_argument('--weights', help='The pretrained weights from "init_weights" firectory to initialize finetuning')
+    parser.add_argument('--weights', help='The pretrained weights from "init_weights" directory')
     parser.add_argument('--work_dir', required=True, help='Directory to collect result of training process')
     parser.add_argument('--data_dir', required=True, help='Directory with dataset')
     parser.add_argument('--solver', default='solver.prototxt', help='The solver definition protocol buffer text file.')

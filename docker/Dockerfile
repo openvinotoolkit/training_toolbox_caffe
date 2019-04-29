@@ -57,7 +57,7 @@ RUN tar -xvzf l_openvino_toolkit_p_${OPENVINO_VERSION}.tgz && \
     sed -i -e 's/ACCEPT_EULA=decline/ACCEPT_EULA=accept/g' silent.cfg && \
     sh install.sh -s silent.cfg && \
     rm -rf /tmp/l_openvino* && \
-    echo "source /opt/intel/computer_vision_sdk/bin/setupvars.sh" >> /etc/bash.bashrc
+    echo "source /opt/intel/openvino/bin/setupvars.sh" >> /etc/bash.bashrc
 
 ENV CAFFE_ROOT=/opt/caffe
 
@@ -66,7 +66,8 @@ WORKDIR $CAFFE_ROOT
 
 RUN pip3 install --upgrade pip==9.0.3 && \
     pip3 install --upgrade setuptools wheel && \
-    pip3 install -r python/requirements.txt
+    pip3 install -r python/requirements.txt && \
+    grep -v protobuf /opt/intel/openvino/deployment_tools/model_optimizer/requirements_caffe.txt | xargs -n 1 pip3 install
 
 RUN mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release \
@@ -77,7 +78,7 @@ RUN mkdir build && cd build && \
       -DCUDA_ARCH_PTX="" \
       -DCUDA_ARCH_NAME="Manual" \
       -DCMAKE_CXX_FLAGS="-std=c++11" \
-      -DOpenCV_DIR=/opt/intel/computer_vision_sdk/opencv/cmake \
+      -DOpenCV_DIR=/opt/intel/openvino/opencv/cmake \
       .. && \
     make -j 4 && make pycaffe
 
