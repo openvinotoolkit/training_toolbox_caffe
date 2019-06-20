@@ -549,6 +549,7 @@ message LayerParameter {
   optional LabelSpecificAddParameter label_specific_add_param = 209;
   optional AnchorEmbeddingExtractorParameter embedding_extractor_param = 210;
   optional ScaleFilterParameter scale_filter_param = 211;
+  optional SmoothL1LossParameter smooth_l1_loss_param = 212;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1587,6 +1588,13 @@ message SliceParameter {
 
   // DEPRECATED: alias for "axis" -- does not support negative indexing.
   optional uint32 slice_dim = 1 [default = 1];
+}
+
+message SmoothL1LossParameter {
+  // SmoothL1Loss(x) =
+  //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
+  //   |x| - 0.5 / sigma / sigma -- otherwise
+  optional float sigma = 1 [default = 1];
 }
 
 // Message that stores parameters used by SoftmaxLayer, SoftmaxWithLossLayer

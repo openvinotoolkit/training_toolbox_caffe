@@ -62,6 +62,15 @@ def eval_cr(test_file, proto, model, compute_mode):
     return cmd
 
 
+def eval_ag(test_file, proto, model, compute_mode):
+    log_file = 'metrics/iter_%s.txt' % osp.basename(model).replace('.caffemodel', '')
+    cmd = """
+          mkdir -p $(dirname {log})
+          python3 $CAFFE_ROOT/python/eval_age_gender.py --compute_mode {cm} --gt {test} --def {proto} --net {model} 2>&1 | tee {log}
+          """.format(test=test_file, proto=proto, model=model, log=log_file, cm=compute_mode)
+    return cmd
+
+
 def find_files(path, iter):
     proto = 'deploy.prototxt'
     snapshots = glob.glob(osp.join(path, 'snapshots', '*_%s.caffemodel' % iter))
@@ -74,7 +83,7 @@ def find_files(path, iter):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('--type', choices=['fd', 'pd', 'ad', 'ad_event', 'cr'], help='Type of metric')
+    parser.add_argument('--type', choices=['fd', 'pd', 'ad', 'ad_event', 'cr', 'ag'], help='Type of metric')
     parser.add_argument('--dir', required=True, help='Experiment directory')
     parser.add_argument('--iter', required=True, help='Iteration of snapshots')
     parser.add_argument('--data_dir', required=True, help='Directory with dataset')
@@ -105,6 +114,7 @@ def main():
         'ad': eval_ad("/data/" + args.annotation, proto, model, compute_mode),
         'ad_event': eval_ad_event("/data/" + args.annotation, proto, model, compute_mode),
         'cr': eval_cr("/data/" + args.annotation, proto, model, compute_mode),
+        'ag': eval_ag("/data/" + args.annotation, proto, model, compute_mode),
     }[args.type]
 
     try:
