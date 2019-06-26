@@ -35,6 +35,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+
+// ------------------------------------------------------------------
+// Fast R-CNN
+// copyright (c) 2015 Microsoft
+// Licensed under The MIT License [see fast-rcnn/LICENSE for details]
+// Written by Ross Girshick
+// Modified by Wei Liu
+// ------------------------------------------------------------------
+
+
 #include <vector>
 
 #include "caffe/layers/smooth_l1_loss_layer.hpp"

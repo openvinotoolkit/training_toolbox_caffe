@@ -35,6 +35,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+
+// ------------------------------------------------------------------
+// Fast R-CNN
+// copyright (c) 2015 Microsoft
+// Licensed under The MIT License [see fast-rcnn/LICENSE for details]
+// Written by Ross Girshick
+// Modified by Wei Liu
+// ------------------------------------------------------------------
+
+
 #ifndef CAFFE_SMOOTH_L1_LOSS_LAYER_HPP_
 #define CAFFE_SMOOTH_L1_LOSS_LAYER_HPP_
 
@@ -50,11 +60,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace caffe {
 
 /**
- * @brief SmoothL1LossLayer
- *
- * Fast R-CNN
- * Written by Ross Girshick
- */
+ * @brief Computes the SmoothL1 loss as introduced in:@f$
+ *  Fast R-CNN, Ross Girshick, ICCV 2015.
+*/
 template <typename Dtype>
 class SmoothL1LossLayer : public LossLayer<Dtype> {
  public:
