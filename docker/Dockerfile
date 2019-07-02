@@ -50,7 +50,6 @@ RUN wget  https://github.com/google/protobuf/releases/download/v3.1.0/protobuf-c
     make install && \
     rm -rf /tmp/protobuf*
 
-#ARG OPENVINO_VERSION=2018.5.455
 ARG OPENVINO_VERSION=2019.2.180
 COPY l_openvino_toolkit_p_${OPENVINO_VERSION}.tgz /tmp/l_openvino_toolkit_p_${OPENVINO_VERSION}.tgz
 WORKDIR /tmp

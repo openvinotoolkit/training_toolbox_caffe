@@ -5,9 +5,11 @@
 The training procedure can be done using data in HDF5 format. Please, prepare images with faces and put it into some
 <DATA_DIR> folder. Then create a special file (<DATA_FILE>) for 'train', 'val' and 'test' phase containing annotations
 with the following structure:
-    image_1_relative_path <gender> <age/100>
-    ...
-    image_n_relative_path <gender> <age/100>
+```
+image_1_relative_path <gender> <age/100>
+...
+image_n_relative_path <gender> <age/100>
+```
 Then use the provided script to create database in HDF5 format.
 
 ### Create HDF5 files
