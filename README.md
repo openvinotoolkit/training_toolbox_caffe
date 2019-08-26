@@ -6,8 +6,9 @@
 This is a [BVLC Caffe](https://github.com/BVLC/caffe) fork that is intended for deployment multiple SSD-based detection models. It includes
 - action detection and action recognition models for smart classroom use-case, see [README_AD.md](README_AD.md),
 - person detection for smart classroom use-case, see [README_PD.md](README_PD.md),
-- face detection model, see [README_FD.md](README_FD.md).
-- person-vehicle-bike crossroad detection model, see [README_CR.md](README_CR.md).
+- face detection model, see [README_FD.md](README_FD.md),
+- person-vehicle-bike crossroad detection model, see [README_CR.md](README_CR.md),
+- age & gender recognition model, see [README_AG.md](README_AG.md).
 
 Please find original readme file [here](README_BVLC.md).
 
@@ -17,6 +18,7 @@ Please find original readme file [here](README_BVLC.md).
 * [Person detection](./README_PD.md)
 * [Action recognition](./README_AD.md)
 * [Person-vehicle-bike crossroad detection](./README_CR.md)
+* [Age & gender recognition] (./README_AG.md)
 
 
 ## Install requirements
