@@ -10,7 +10,9 @@ image_1_relative_path <gender> <age/100>
 ...
 image_n_relative_path <gender> <age/100>
 ```
-Then use the provided script to create database in HDF5 format.
+The example images with a corresponding data file can be found in ./data directory and used in evaluation script.
+
+Once you have images and a data file, use the provided script to create database in HDF5 format.
 
 ### Create HDF5 files
 1. Run docker in interactive sesion with mounted directory of your data
