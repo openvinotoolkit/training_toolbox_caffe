@@ -9,7 +9,7 @@ As an example of usage please download a small dataset from [here](https://downl
 
 To create LMDB files go to the '$CAFFE_ROOT/python/lmdb_utils/' directory and run the following scripts:
 
-1. Run docker in interactive sesion with mounted directory with WIDER dataset
+1. Run docker in interactive session with mounted directory with WIDER dataset
 ```Shell
 nvidia-docker run --rm -it --user=$(id -u) -v <DATA_DIR>:/data ttcf bash
 ```
@@ -22,7 +22,7 @@ python3 $CAFFE_ROOT/python/lmdb_utils/convert_to_voc_format.py /data/annotation_
 ```Shell
 bash $CAFFE_ROOT/python/lmdb_utils/create_cr_lmdb.sh
 ```
-4. Close docker session by 'alt+D' and check that you have lmdb files in <DATA_DIR>/lmdb.
+4. Close docker session by `ctrl+D` and check that you have lmdb files in <DATA_DIR>/lmdb.
 
 
 ###
@@ -32,7 +32,7 @@ On next stage we should train the Person-vehicle-bike crossroad (four class) det
 
 ```Shell
 cd ./models
-python train.py --model crossroad \
+python3 train.py --model crossroad \
                 --weights person-vehicle-bike-detection-crossroad-0078.caffemodel \
                 --data_dir <DATA_DIR> \
                 --work_dir<WORK_DIR> \
@@ -44,7 +44,7 @@ python train.py --model crossroad \
 To evaluate the quality of trained Person-vehicle-bike crossroad detection model on your test data you can use provided scripts.
 
 ```Shell
-python evaluate.py --type cr \
+python3 evaluate.py --type cr \
     --dir <WORK_DIR>/crossroad/<EXPERIMENT_NUM> \
     --data_dir <DATA_DIR> \
     --annotation annotation_val_cvt.json \
@@ -54,7 +54,7 @@ python evaluate.py --type cr \
 ### Export to IR format
 
 ```Shell
-python mo_convert.py --type cr \
+python3 mo_convert.py --type cr \
     --name crossroad \
     --dir <WORK_DIR>/crossroad/<EXPERIMENT_NUM> \
     --iter <ITERATION_NUM> \
