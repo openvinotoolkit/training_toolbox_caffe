@@ -27,7 +27,7 @@ python3 $CAFFE_ROOT/python/gen_hdf5_data.py /data/<DATA_VAL_FILE> images_db_val
 python3 $CAFFE_ROOT/python/gen_hdf5_data.py /data/<DATA_TEST_FILE> images_db_test
 ```
 
-3. Close docker session by 'alt+D' and check that you have `images_db_<subset>.hd5` and `images_db_<subset>_list.txt` files in <DATA_DIR>.
+3. Close docker session by `ctrl+D` and check that you have `images_db_<subset>.hd5` and `images_db_<subset>_list.txt` files in <DATA_DIR>.
 
 
 ## Model training and evaluation

@@ -37,7 +37,7 @@ cd ./models/templates/person_detection_action_recognition_N_classes
 
 
 ### (optional) Prepare init weights from PD model
-1. Run docker in interactive sesion with mounted directory with WIDER dataset
+1. Run docker in interactive session with mounted directory with WIDER dataset
 ```Shell
 nvidia-docker --rm -it -v <path_to_folder_with_weights>:/workspace tccf bash
 ```
@@ -59,10 +59,10 @@ On next stage we should train the Action Recognition (AR) model which reuses det
 
 ```Shell
 cd ./models
-python train.py --model person_detection_action_recognition \ # name of model
-                --weights action_detection_0005.caffemodel \  # initialize weights from 'init_weights' directory
-                --data_dir <PATH_TO_DATA> \                   # path to directory with dataset
-                --work_dir <WORK_DIR> \                       # directory to collect file from training process
+python3 train.py --model person_detection_action_recognition \ # name of model
+                --weights action_detection_0005.caffemodel \   # initialize weights from 'init_weights' directory
+                --data_dir <PATH_TO_DATA> \                    # path to directory with dataset
+                --work_dir <WORK_DIR> \                        # directory to collect file from training process
                 --gpu <GPU_ID>
 ```
 
@@ -72,7 +72,7 @@ To evaluate the quality of trained Action Recognition model on your test data yo
 
 1. Frame independent evaluation:
 ```Shell
-python evaluate.py --type ad \
+python3 evaluate.py --type ad \
     --dir <EXPERIMENT_DIR> \
     --data_dir <DATA_DIR> \
     --annotaion test_tasks.txt \
@@ -81,7 +81,7 @@ python evaluate.py --type ad \
 
 2. Event-based evaluation:
 ```Shell
-python evaluate.py --type ad_event \
+python3 evaluate.py --type ad_event \
     --dir <EXPERIMENT_DIR> \
     --data_dir <DATA_DIR> \
     --annotaion test_tasks.txt \
@@ -91,7 +91,7 @@ python evaluate.py --type ad_event \
 ### Export to IR format
 
 ```Shell
-python mo_convert.py --name action_recognition --type ad \
+python3 mo_convert.py --name action_recognition --type ad \
     --dir <EXPERIMENT_DIR> \
     --iter <ITERATION_NUM> \
     --data_type FP32

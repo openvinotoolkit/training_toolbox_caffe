@@ -8,7 +8,7 @@ The training procedure can be done using data in LMDB format. To launch training
 
 To create LMDB files go to the '$CAFFE_ROOT/python/lmdb_utils/' directory and run the following scripts:
 
-1. Run docker in interactive sesion with mounted directory with WIDER dataset
+1. Run docker in interactive session with mounted directory with WIDER dataset
 ```Shell
 nvidia-docker run --rm -it --user=$(id -u) -v <DATA_DIR>:/data ttcf bash
 ```
@@ -29,7 +29,7 @@ python3 $CAFFE_ROOT/python/lmdb_utils/xml_to_ssd.py --ssd_path /data --xml_path_
 bash $CAFFE_ROOT/python/lmdb_utils/create_wider_lmdb.sh
 ```
 
-5. Close docker session by 'alt+D' and check that you have lmdb files in <DATA_DIR>.
+5. Close docker session by `ctrl+D` and check that you have lmdb files in <DATA_DIR>.
 
 
 ###
@@ -39,7 +39,7 @@ On next stage we should train the Face Detection model. To do this follow next s
 
 ```Shell
 cd ./models
-python train.py --model face_detection \                           # name of model
+python3 train.py --model face_detection \                          # name of model
                 --weights face-detection-retail-0044.caffemodel \  # initialize weights from 'init_weights' directory
                 --data_dir <DATA_DIR> \                            # path to directory with dataset
                 --work_dir <WORK_DIR> \                            # directory to collect file from training process
@@ -51,7 +51,7 @@ python train.py --model face_detection \                           # name of mod
 To evaluate the quality of trained Face Detection model on your test data you can use provided scripts.
 
 ```Shell
-python evaluate.py --type fd \
+python3 evaluate.py --type fd \
     --dir <WORK_DIR>/face_detection/<EXPERIMENT_NUM> \
     --data_dir <DATA_DIR> \
     --annotation wider_val.xml \
@@ -61,7 +61,7 @@ python evaluate.py --type fd \
 ### Export to IR format
 
 ```Shell
-python mo_convert.py --name face_detection \
+python3 mo_convert.py --name face_detection \
     --dir <WORK_DIR>/face_detection/<EXPERIMENT_NUM> \
     --iter <ITERATION_NUM> \
     --data_type FP32

@@ -13,7 +13,7 @@ On first stage you should train the SSD-based person (two class) detector. To do
 
 ```Shell
 cd ./models
-python train.py --model person_detection \                    # name of model
+python3 train.py --model person_detection \                   # name of model
                 --weights person_detection_0022.caffemodel \  # initialize weights from 'init_weights' directory
                 --data_dir <PATH_TO_DATA> \                   # path to directory with dataset
                 --work_dir <WORK_DIR>                         # directory to collect file from training process
@@ -28,7 +28,7 @@ Note: to get more accurate model it's recommended to use pre-training of backbon
 
 ```Shell
 cd ./models
-python mo_convert.py --name face_detection \
+python3 mo_convert.py --name face_detection \
     --dir <WORK_DIR>/person_detection/<EXPERIMENT_NUM> \
     --iter <INTERATION> \
     --data_type FP32

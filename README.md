@@ -1,8 +1,6 @@
 
 # TTCF: Training Toolbox for Caffe
 
-[![Build Status](http://134.191.240.124/buildStatus/icon?job=caffe-toolbox/develop/trigger)](http://134.191.240.124/job/caffe-toolbox/job/develop/job/trigger/)
-
 This is a [BVLC Caffe](https://github.com/BVLC/caffe) fork that is intended for deployment multiple SSD-based detection models. It includes
 - action detection and action recognition models for smart classroom use-case, see [README_AD.md](README_AD.md),
 - person detection for smart classroom use-case, see [README_PD.md](README_PD.md),
