@@ -14,11 +14,11 @@ Please find original readme file [here](README_BVLC.md).
 
 
 ## Models
+* [Action recognition](./README_AD.md)
+* [Age & gender recognition](./README_AG.md)
 * [Face detection](./README_FD.md)
 * [Person detection](./README_PD.md)
-* [Action recognition](./README_AD.md)
 * [Person-vehicle-bike crossroad detection](./README_CR.md)
-* [Age & gender recognition] (./README_AG.md)
 
 
 ## Install requirements
