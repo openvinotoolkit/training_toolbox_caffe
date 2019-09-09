@@ -75,7 +75,7 @@ def main():
     docker_command = [
         exec_bin, 'run', '--rm',
         '--user=%s:%s' % (os.getuid(), os.getgid()),
-        '-v', '%s:/workspace' % args.dir,
+        '-v', '%s:/workspace' % os.path.abspath(args.dir),
         args.image
     ]
 

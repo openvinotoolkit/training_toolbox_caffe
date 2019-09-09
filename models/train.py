@@ -73,8 +73,8 @@ def main():
         exec_bin, 'run', '--rm',
         '--user=%s:%s' % (os.getuid(), os.getgid()),
         '--name', container_name,  # Name of container
-        '-v', '%s:/workspace' % experiment_dir,  # Mout work directory
-        '-v', '%s:/data:ro' % args.data_dir,  # Mount directory with dataset
+        '-v', '%s:/workspace' % os.path.abspath(experiment_dir),  # Mout work directory
+        '-v', '%s:/data:ro' % os.path.abspath(args.data_dir),  # Mount directory with dataset
         '-v', '%s:/init_weights:ro' % os.path.abspath('../init_weights'),  # Mount directory with init weights
         args.image
     ]

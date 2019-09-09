@@ -102,8 +102,8 @@ def main():
         exec_bin, 'run', '--rm',
         '--name', container_name,
         '--user=%s:%s' % (os.getuid(), os.getgid()),
-        '-v', '%s:/workspace' % args.dir,
-        '-v', '%s:/data:ro' % args.data_dir,  # Mount directory with dataset
+        '-v', '%s:/workspace' % os.path.abspath(args.dir),
+        '-v', '%s:/data:ro' % os.path.abspath(args.data_dir),  # Mount directory with dataset
         args.image
     ]
 
