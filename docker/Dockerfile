@@ -91,3 +91,5 @@ RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig &> 
 RUN echo 'export PS1="\w\$ "' >> /etc/bash.bashrc
 
 WORKDIR /workspace
+
+
