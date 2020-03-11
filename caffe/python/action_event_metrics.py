@@ -29,6 +29,7 @@ from lxml import etree
 from tqdm import tqdm
 
 os.environ['GLOG_minloglevel'] = '2'
+
 # pylint: disable=wrong-import-position
 import caffe
 
