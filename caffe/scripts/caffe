@@ -68,6 +68,7 @@ _caffe()
 
   return 0
 }
+
 complete -F _caffe caffe
 
 # vim
