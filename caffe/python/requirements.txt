@@ -16,7 +16,7 @@ pyyaml>=3.10
 Pillow>=5.1.0
 six>=1.10.0
 lxml>=4.2.2
-opencv-python==3.2.0.8
+opencv-python==4.2.0.32
 tqdm>=4.23.4
 future>=0.17.1
 seaborn>=0.9.0
